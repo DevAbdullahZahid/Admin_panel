@@ -1,0 +1,5 @@
+{
+  "name": "IELTS Admin Portal",
+  "description": "An admin portal to manage the content and users of the IELTS Practice mobile app. It includes a dashboard for key metrics and a comprehensive interface for creating and managing practice exercises.",
+  "requestFramePermissions": []
+}
