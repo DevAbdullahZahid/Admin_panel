@@ -1,7 +1,7 @@
 // src/utils/apiService.ts
 
 // The base URL of your deployed API
-const API_BASE_URL = 'https://api-iprep.rezotera.com/api/v1';
+const API_BASE_URL = 'https://dev-api-iprep.rezotera.com/api/v1';
 
 /**
  * Gets the auth token from localStorage.

@@ -1,11 +1,11 @@
 // src/components/AddUserModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { PortalUserRole } from '../types';
 
 interface UserFormInputs {
   email: string;
-  password: string;
+  password?: string;
   firstName: string;
   lastName: string;
   role: PortalUserRole;
@@ -38,49 +38,75 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<UserFormInputs>({
-    defaultValues: isEditing
-      ? {
-          email: editingUser.email,
-          firstName: editingUser.firstName,
-          lastName: editingUser.lastName,
-          role: editingUser.role,
-          referralCode: editingUser.referralCode,
-          discountAmount: editingUser.discountAmount,
-          isActive: editingUser.isActive,
-        }
-      : {},
+    defaultValues: {}, // We'll set them in useEffect
   });
 
   /* ---------- LOCAL UI STATE ---------- */
   const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);   // <-- FIXED
+  const [isSubmitting, setIsSubmitting] = useState(false);
   /* ------------------------------------ */
+
+  /* ---------- SYNC DEFAULT VALUES WHEN EDITING ---------- */
+  useEffect(() => {
+    if (isEditing && editingUser) {
+      setValue('email', editingUser.email || '');
+      setValue('firstName', editingUser.firstName || '');
+      setValue('lastName', editingUser.lastName || '');
+      setValue('role', editingUser.role || 'User');
+      setValue('referralCode', editingUser.referralCode || '');
+      setValue('discountAmount', editingUser.discountAmount || undefined);
+      setValue('isActive', editingUser.isActive ?? true);
+    } else {
+      reset({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        role: 'User',
+        referralCode: '',
+        discountAmount: undefined,
+        isActive: true,
+      });
+    }
+  }, [isEditing, editingUser, setValue, reset]);
+  /* ----------------------------------------------------- */
 
   /* ---------- FORM SUBMIT ---------- */
   const onSubmit: SubmitHandler<UserFormInputs> = async (data) => {
     setSubmissionError(null);
-    setIsSubmitting(true);                                   // <-- FIXED
+    setIsSubmitting(true);
 
     try {
-      // ---- BUILD PAYLOAD EXACTLY LIKE YOUR BACKEND ----
+      // ---- BUILD PAYLOAD EXACTLY LIKE BACKEND EXPECTS ----
       const payload: any = {
         email: data.email,
-        password: data.password,
         first_name: data.firstName,
         last_name: data.lastName,
         role: data.role.toLowerCase(),
         plan: 'free',
       };
 
-      if (data.referralCode) payload.referred_by_referral_code = data.referralCode;
-      if (data.discountAmount && data.discountAmount > 0) payload.discount_amount = data.discountAmount;
-      if (isEditing && data.isActive !== undefined) payload.is_active = data.isActive;
+      // Only send password for new users
+      if (!isEditing && data.password) {
+        payload.password = data.password;
+      }
 
-      console.log('AddUserModal → payload:', payload);   // DEBUG
+      // Optional fields
+      if (data.referralCode) {
+        payload.referred_by_referral_code = data.referralCode;
+      }
+      if (data.discountAmount !== undefined && data.discountAmount > 0) {
+        payload.discount_amount = data.discountAmount;
+      }
+      if (isEditing && data.isActive !== undefined) {
+        payload.is_active = data.isActive;
+      }
 
-      // ---- CALL PARENT (UsersManagement) ----
+      console.log('AddUserModal → Sending payload:', payload);
+
       const saved = await onAddUser(payload, isEditing ? editingUser.id : undefined);
       if (saved) {
         reset();
@@ -88,12 +114,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
       }
     } catch (err: any) {
       console.error('AddUserModal error:', err);
-      const msg = err.message.toLowerCase().includes('already exists')
+      const msg = err.message?.toLowerCase().includes('already exists')
         ? 'An account with this email already exists.'
-        : err.message;
+        : err.message || 'Failed to save user';
       setSubmissionError(msg);
     } finally {
-      setIsSubmitting(false);                           // <-- FIXED
+      setIsSubmitting(false);
     }
   };
   /* --------------------------------- */
@@ -122,9 +148,15 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
-              {...register('email', { required: 'Email is required' })}
+              {...register('email', { 
+                required: 'Email is required',
+                pattern: {
+                  value: /^\S+@\S+$/i,
+                  message: 'Invalid email address'
+                }
+              })}
               type="email"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
               disabled={isEditing}
             />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
@@ -135,9 +167,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700">Password</label>
               <input
-                {...register('password', { required: 'Password is required' })}
+                {...register('password', { 
+                  required: 'Password is required',
+                  minLength: { value: 6, message: 'Password must be at least 6 characters' }
+                })}
                 type="password"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
@@ -149,7 +184,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <input
               {...register('firstName', { required: 'First name is required' })}
               type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
           </div>
@@ -160,7 +195,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <input
               {...register('lastName', { required: 'Last name is required' })}
               type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
             {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
           </div>
@@ -170,8 +205,9 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <label className="block text-sm font-medium text-gray-700">Role</label>
             <select
               {...register('role', { required: 'Role is required' })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
             >
+              <option value="">Select a role</option>
               <option value="SuperAdmin">SuperAdmin</option>
               <option value="Admin">Admin</option>
               <option value="Editor">Editor</option>
@@ -186,20 +222,27 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <input
               {...register('referralCode')}
               type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              placeholder="e.g. ABC123"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
-          {/* DISCOUNT (optional) */}
+          {/* DISCOUNT % (optional) */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Discount % (optional)</label>
             <input
-              {...register('discountAmount', { valueAsNumber: true })}
+              {...register('discountAmount', { 
+                valueAsNumber: true,
+                min: { value: 0, message: 'Cannot be negative' },
+                max: { value: 100, message: 'Cannot exceed 100%' }
+              })}
               type="number"
               min="0"
               max="100"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              placeholder="0"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
+            {errors.discountAmount && <p className="text-red-500 text-xs mt-1">{errors.discountAmount.message}</p>}
           </div>
 
           {/* ACTIVE STATUS (only on edit) */}
@@ -208,9 +251,9 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
               <input
                 {...register('isActive')}
                 type="checkbox"
-                className="h-4 w-4 text-indigo-600 rounded"
+                className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
               />
-              <label className="ml-2 text-sm text-gray-700">Active</label>
+              <label className="ml-2 text-sm text-gray-700">User is active</label>
             </div>
           )}
 
@@ -219,16 +262,16 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Create'}
+              {isSubmitting ? 'Saving...' : isEditing ? 'Update User' : 'Create User'}
             </button>
           </div>
         </form>

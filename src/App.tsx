@@ -7,8 +7,7 @@ import Dashboard from './pages/Dashboard';
 import ExercisesManagement from './pages/ExercisesManagement';
 import ExerciseForm from './pages/ExerciseForm';
 import UsersManagement from './pages/UsersManagement';
-import LoginPage from './pages/LoginPage';
-import EditorTaskView from './pages/EditorTaskView'; // Uncommented for user/editor view
+import LoginPage from './pages/LoginPage'; // Uncommented for user/editor view
 import PromoCodes from './pages/PromoCodes';
 import PromoModules from './pages/PromoModules';
 import { useAuth } from './hooks/useAuth';
@@ -117,7 +116,7 @@ const App: React.FC = () => {
   }
 
   // Fallback for other roles (e.g., 'User') – show EditorTaskView
-  return <EditorTaskView />;
+  return <LoginPage />;
 };
 
 export default App;

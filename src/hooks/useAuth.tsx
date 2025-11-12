@@ -71,62 +71,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string): Promise<true> => { 
-    try {
-      const response = await fetch('https://api-iprep.rezotera.com/api/v1/auth/login', {
+  const login = async (email: string, password: string): Promise<true> => {
+  try {
+    const response = await fetch(
+      'https://dev-api-iprep.rezotera.com/api/v1/auth/login',
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Login failed. Please try again.';
-        try {
-          const errorData = await response.json();
-          if (errorData && errorData.detail) { 
-            errorMessage = errorData.detail;
-          } else {
-            errorMessage = `Error ${response.status}: ${response.statusText}`;
-          }
-        } catch (e) {
-          errorMessage = `Error ${response.status}: ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
       }
+    );
 
-      const data = await response.json();
-      
-      const token = data.token;
-      const userFromLogin = data.user;
-      
-      if (!token) throw new Error('Login successful, but no auth token was provided.');
-      if (!userFromLogin) throw new Error('Login successful, but no user object was provided.');
-      
-      // 1. Save the token
-      setToken(token);
+    const result = await response.json();
 
-      // 2. Convert the user object
-      const userForContext: User = {
-        id: userFromLogin.id,
-        name: `${userFromLogin.firstName} ${userFromLogin.lastName}`,
-        email: userFromLogin.email,
-        role: normalizeRole(userFromLogin.role), // <-- (FIX APPLIED HERE)
-        isActive: userFromLogin.isActive,
-      };
-
-      // 3. Set the current user in state
-      setCurrentUser(userForContext);
-      
-      // 4. Log activity
-      logActivity(`logged in`, userForContext.name);
-
-      return true; // Return true on success
-
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+    // Handle non-200 or non-successful responses
+    if (result.code !== 200 || result.status !== 'success') {
+      throw new Error(result.message || 'Login failed. Please check your credentials.');
     }
-  };
+
+    // ✅ Correctly extract token and user
+    const token = result.data?.token;
+    const userFromLogin = result.data?.user;
+
+    if (!token) throw new Error('Login successful, but no auth token was provided.');
+    if (!userFromLogin) throw new Error('Login successful, but no user object was provided.');
+
+    // 1. Save the token securely
+    setToken(token);
+
+    // 2. Normalize and prepare user for React Context
+    const userForContext: User = {
+      id: userFromLogin.id,
+      name: `${userFromLogin.firstName} ${userFromLogin.lastName}`,
+      email: userFromLogin.email,
+      role: normalizeRole(userFromLogin.role),
+      isActive: userFromLogin.isActive,
+    };
+
+    // 3. Set in state
+    setCurrentUser(userForContext);
+
+    // 4. Log activity (for audit / analytics)
+    logActivity('logged in', userForContext.name);
+
+    return true;
+  } catch (error: any) {
+    console.error('Login error:', error);
+    throw new Error(error.message || 'Something went wrong during login.');
+  }
+};
+
 
   const logout = () => {
     if (currentUser) {

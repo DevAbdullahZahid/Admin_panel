@@ -19,21 +19,19 @@ const LoginPage: React.FC<LoginPageProps> = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     // --- (MODIFICATION) Improved Error Handling ---
-    const onSubmit: SubmitHandler<FormInputs> = async (data) => {
-        setIsLoading(true);
-        setLoginError(null);
-        
-        try {
-          // login() will now return true on success or throw an error
-          await login(data.email, data.password); 
-          // If successful, the app will redirect via the AuthProvider
-          
-        } catch (error: any) {
-          // Catch the specific error message from useAuth and display it
-          setLoginError(error.message || 'An unknown error occurred.');
-          setIsLoading(false); // Only set loading to false on error
-        }
-    };
+   const onSubmit: SubmitHandler<FormInputs> = async (data) => {
+    setIsLoading(true);
+    setLoginError(null);
+    
+
+    try {
+        await login(data.email, data.password);
+    } catch (error: any) {
+        setLoginError(error.message || 'An unknown error occurred.');
+    } finally {
+        setIsLoading(false); // Always reset
+    }
+};
     // --- END OF MODIFICATION ---
 
     return (

@@ -1,5 +1,5 @@
 // src/pages/UsersManagement.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppUser, PortalUserRole } from '../types';
 import AddUserModal from '../components/AddUserModal';
 import { PlusIcon, TrashIcon } from '../components/icons';
@@ -37,16 +37,15 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
 
   const { currentUser } = useAuth();
   const currentUserLevel = getRoleLevel(currentUserRole);
-  /* ---------------------------------------------------------- */
 
   /* ----------------------- FETCH USERS ----------------------- */
-  const fetchUsers = useCallback(async () => {
-    console.log('fetchUsers() called');               // DEBUG
+  const fetchUsers = async () => {
+    console.log('fetchUsers() called');
     setIsLoading(true);
     setError(null);
     try {
       const response = await apiFetch('/users', { method: 'GET' });
-      console.log('GET /users response:', response);   // DEBUG
+      console.log('GET /users response:', response);
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
@@ -54,13 +53,18 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
       }
 
       const data = await response.json();
-      console.log('GET /users payload:', data);        // DEBUG
+      console.log('GET /users payload:', data);
 
       let list: AppUser[] = [];
-      if (Array.isArray(data)) list = data;
-      else if (data.users && Array.isArray(data.users)) list = data.users;
-      else if (data.data && Array.isArray(data.data)) list = data.data;
-      else throw new Error('Unexpected response format');
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (data.users && Array.isArray(data.users)) {
+        list = data.users;
+      } else if (data.data?.users && Array.isArray(data.data.users)) {
+        list = data.data.users;
+      } else {
+        throw new Error('Unexpected response format');
+      }
 
       setUsers(list);
     } catch (err: any) {
@@ -69,11 +73,11 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, []); // Run once on mount
 
   /* SEARCH FILTER */
   const filteredUsers = users.filter((u) => {
@@ -93,7 +97,7 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
       const endpoint = userId ? `/users/${userId}` : '/users/register';
       const method = userId ? 'PUT' : 'POST';
 
-      console.log(`Calling ${method} ${endpoint}`, payload); // DEBUG
+      console.log(`Calling ${method} ${endpoint}`, payload);
 
       const response = await apiFetch(endpoint, {
         method,
@@ -109,7 +113,7 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
       logActivity(`${action} user '${payload.first_name} ${payload.last_name}'`, currentUser?.name || 'Admin');
       setSuccess(`User ${action} successfully!`);
 
-      // ---- RELOAD LIST ----
+      // RELOAD USERS
       await fetchUsers();
 
       setIsModalOpen(false);
@@ -157,7 +161,7 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
     }
   };
 
-  /*EDIT HANDLER */
+  /* EDIT HANDLER */
   const openEditModal = (user: AppUser) => {
     const targetLevel = getRoleLevel(user.role as PortalUserRole);
     const canEdit =
