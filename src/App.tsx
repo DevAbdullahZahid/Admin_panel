@@ -10,8 +10,10 @@ import UsersManagement from './pages/UsersManagement';
 import LoginPage from './pages/LoginPage'; // Uncommented for user/editor view
 import PromoCodes from './pages/PromoCodes';
 import PromoModules from './pages/PromoModules';
+import Inquiries from './pages/Inquiries';
 import { useAuth } from './hooks/useAuth';
 import { Exercise, ExerciseType, User, PortalUserRole } from './types';
+import ContactFormSubmissions from './pages/ContactFormSubmissions';
 
 type Page =
   | 'Dashboard'
@@ -21,6 +23,8 @@ type Page =
   | 'Listening'
   | 'Speaking'
   | 'Promo Codes'
+  | 'Contact Form Submissions'
+  | 'Inquiries'
   | 'Promo Modules';
 
 const LoggedInApp: React.FC<{ currentUser: User }> = ({ currentUser }) => {
@@ -54,30 +58,34 @@ const LoggedInApp: React.FC<{ currentUser: User }> = ({ currentUser }) => {
   };
 
   const renderContent = () => {
-    switch (activePage) {
-      case 'Dashboard':
-        return <Dashboard />;
-      case 'Users Management':
-        return <UsersManagement
-          currentUserRole={currentUser.role}
-          currentUserId={currentUser.id}
-        />;
-      case 'Reading':
-        return renderExerciseContent('Reading');
-      case 'Writing':
-        return renderExerciseContent('Writing');
-      case 'Listening':
-        return renderExerciseContent('Listening');
-      case 'Speaking':
-        return renderExerciseContent('Speaking');
-      case 'Promo Codes':
-        return <PromoCodes />;
-      case 'Promo Modules':
-        return <PromoModules />;
-      default:
-        return <Dashboard />;
-    }
-  };
+  switch (activePage) {
+    case 'Dashboard':
+      return <Dashboard />;
+    case 'Users Management':
+      return <UsersManagement
+        currentUserRole={currentUser.role}
+        currentUserId={currentUser.id}
+      />;
+    case 'Reading':
+      return renderExerciseContent('Reading');
+    case 'Writing':
+      return renderExerciseContent('Writing');
+    case 'Listening':
+      return renderExerciseContent('Listening');
+    case 'Speaking':
+      return renderExerciseContent('Speaking');
+    case 'Promo Codes':
+      return <PromoCodes />;
+    case 'Promo Modules':
+      return <PromoModules />;
+    case 'Inquiries':                     // <-- ADD THIS
+      return <Inquiries />; 
+    case 'Contact Form Submissions':
+        return <ContactFormSubmissions />;             
+    default:
+      return <Dashboard />;
+  }
+};
 
   return (
     <div className="flex h-screen bg-gray-100 text-gray-800">
