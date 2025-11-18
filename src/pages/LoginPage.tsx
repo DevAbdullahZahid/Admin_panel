@@ -18,20 +18,37 @@ const LoginPage: React.FC<LoginPageProps> = () => {
     const [loginError, setLoginError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- (MODIFICATION) Improved Error Handling ---
-   const onSubmit: SubmitHandler<FormInputs> = async (data) => {
-    setIsLoading(true);
-    setLoginError(null);
-    
-
-    try {
-        await login(data.email, data.password);
-    } catch (error: any) {
-        setLoginError(error.message || 'An unknown error occurred.');
-    } finally {
-        setIsLoading(false); // Always reset
-    }
-};
+    // --- (MODIFICATION) Print JWT Token from localStorage ---
+    const onSubmit: SubmitHandler<FormInputs> = async (data) => {
+        setIsLoading(true);
+        setLoginError(null);
+        
+        try {
+            const response = await login(data.email, data.password);
+            
+            console.log('Login Response:', response);
+            
+            // Print token from localStorage (common storage locations)
+            const token = localStorage.getItem('token') || 
+                         localStorage.getItem('authToken') || 
+                         localStorage.getItem('jwt') ||
+                         localStorage.getItem('access_token');
+            
+            console.log('JWT Token from localStorage:', token);
+            
+            // Also check sessionStorage
+            const sessionToken = sessionStorage.getItem('token') || 
+                                sessionStorage.getItem('authToken');
+            console.log('JWT Token from sessionStorage:', sessionToken);
+            
+           
+            
+        } catch (error: any) {
+            setLoginError(error.message || 'An unknown error occurred.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
     // --- END OF MODIFICATION ---
 
     return (
@@ -53,7 +70,6 @@ const LoginPage: React.FC<LoginPageProps> = () => {
                     </div>
                     
                     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-                        {/* This <p> tag will now show the *exact* API error */}
                         {loginError && <p className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">{loginError}</p>}
                         
                         <div className="mb-5">
