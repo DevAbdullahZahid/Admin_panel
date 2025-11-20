@@ -39,37 +39,27 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
   const currentUserLevel = getRoleLevel(currentUserRole);
 
   /* ----------------------- FETCH USERS ----------------------- */
+  const extractUserList = (payload: any): AppUser[] => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.users)) return payload.users;
+    if (Array.isArray(payload?.data?.users)) return payload.data.users;
+    return [];
+  };
+
   const fetchUsers = async () => {
-    console.log('fetchUsers() called');
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiFetch('/users', { method: 'GET' });
-      console.log('GET /users response:', response);
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || err.message || `HTTP ${response.status}`);
+      const data = await apiFetch('/users', { method: 'GET' });
+      const list = extractUserList(data);
+      if (!Array.isArray(list)) {
+        throw new Error('Unexpected response format from /users');
       }
-
-      const data = await response.json();
-      console.log('GET /users payload:', data);
-
-      let list: AppUser[] = [];
-      if (Array.isArray(data)) {
-        list = data;
-      } else if (data.users && Array.isArray(data.users)) {
-        list = data.users;
-      } else if (data.data?.users && Array.isArray(data.data.users)) {
-        list = data.data.users;
-      } else {
-        throw new Error('Unexpected response format');
-      }
-
       setUsers(list);
     } catch (err: any) {
       console.error('fetchUsers error:', err);
       setError(err.message || 'Failed to load users');
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
@@ -99,15 +89,10 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
 
       console.log(`Calling ${method} ${endpoint}`, payload);
 
-      const response = await apiFetch(endpoint, {
+      await apiFetch(endpoint, {
         method,
         body: JSON.stringify(payload),
       });
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || err.message || `HTTP ${response.status}`);
-      }
 
       const action = userId ? 'updated' : 'created';
       logActivity(`${action} user '${payload.first_name} ${payload.last_name}'`, currentUser?.name || 'Admin');
@@ -147,11 +132,7 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
     }
 
     try {
-      const response = await apiFetch(`/users/${user.id}`, { method: 'DELETE' });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || err.message || `HTTP ${response.status}`);
-      }
+      await apiFetch(`/users/${user.id}`, { method: 'DELETE' });
 
       logActivity(`deleted user '${user.firstName} ${user.lastName}'`, currentUser?.name || 'Admin');
       setSuccess('User deleted successfully');

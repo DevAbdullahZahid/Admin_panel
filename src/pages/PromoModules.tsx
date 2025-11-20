@@ -1,11 +1,13 @@
 // src/pages/PromoModules.tsx
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../utils/apiService';
 
 interface Promo {
+  id: number;
   code: string;
   type: 'flat' | 'percentage';
-  value: string;
-  usageLimit: string;
+  value: number;
+  usageLimit?: number;
   perUserLimit: 'single' | 'multiple';
 }
 
@@ -13,19 +15,44 @@ const PromoModules: React.FC = () => {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const savedPromos = localStorage.getItem('promos');
-    if (savedPromos) {
-      setPromos(JSON.parse(savedPromos));
+  // --- Fetch all promos from API ---
+  const fetchPromos = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiFetch('/promocode', { method: 'GET' });
+      const promoArray = data?.data?.promocodes ?? [];
+      setPromos(promoArray);
+    } catch (err) {
+      console.error('Error fetching promos:', err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchPromos();
   }, []);
 
-  const deletePromo = (code: string) => {
-    if (window.confirm(`Delete ${code}?`)) {
-      const updated = promos.filter((p) => p.code !== code);
-      setPromos(updated);
-      localStorage.setItem('promos', JSON.stringify(updated));
+  // --- Delete promo by ID ---
+  const deletePromo = async (id: number, code: string) => {
+    if (!window.confirm(`Delete promo ${code}?`)) return;
+    try {
+      await apiFetch(`/promocode/${id}`, { method: 'DELETE' });
+      setPromos(promos.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error('Error deleting promo:', err);
+      alert('Failed to delete promo.');
+    }
+  };
+
+  // --- Update promo (optional, can extend for edit modal) ---
+  const updatePromo = async (id: number, updatedData: Partial<Promo>) => {
+    try {
+      await apiFetch(`/promocode/${id}`, { method: 'PUT', body: JSON.stringify(updatedData) });
+      fetchPromos(); // refresh list
+    } catch (err) {
+      console.error('Error updating promo:', err);
+      alert('Failed to update promo.');
     }
   };
 
@@ -50,14 +77,20 @@ const PromoModules: React.FC = () => {
           </thead>
           <tbody>
             {promos.map((promo) => (
-              <tr key={promo.code} className="border-b">
+              <tr key={promo.id} className="border-b">
                 <td className="py-3 px-4">{promo.code}</td>
                 <td className="py-3 px-4 capitalize">{promo.type}</td>
                 <td className="py-3 px-4">{promo.type === 'flat' ? `₨${promo.value}` : `${promo.value}%`}</td>
-                <td className="py-3 px-4">{promo.usageLimit || '∞'}</td>
+                <td className="py-3 px-4">{promo.usageLimit ?? '∞'}</td>
                 <td className="py-3 px-4 capitalize">{promo.perUserLimit}</td>
                 <td className="py-3 px-4 text-center">
-                  <button onClick={() => deletePromo(promo.code)} className="text-red-600 hover:text-red-800">Delete</button>
+                  <button
+                    onClick={() => deletePromo(promo.id, promo.code)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Delete
+                  </button>
+                  {/* Optional: Add edit button and open modal for updatePromo */}
                 </td>
               </tr>
             ))}

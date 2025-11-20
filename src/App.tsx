@@ -4,24 +4,20 @@ import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
-import ExercisesManagement from './pages/ExercisesManagement';
-import ExerciseForm from './pages/ExerciseForm';
+import ModulesManagement from './pages/ModulesManagement';
 import UsersManagement from './pages/UsersManagement';
 import LoginPage from './pages/LoginPage'; // Uncommented for user/editor view
 import PromoCodes from './pages/PromoCodes';
 import PromoModules from './pages/PromoModules';
 import Inquiries from './pages/Inquiries';
 import { useAuth } from './hooks/useAuth';
-import { Exercise, ExerciseType, User, PortalUserRole } from './types';
+import { User } from './types';
 import ContactFormSubmissions from './pages/ContactFormSubmissions';
 
 type Page =
   | 'Dashboard'
   | 'Users Management'
-  | 'Reading'
-  | 'Writing'
-  | 'Listening'
-  | 'Speaking'
+  | 'Exercises Management'
   | 'Promo Codes'
   | 'Contact Form Submissions'
   | 'Inquiries'
@@ -29,33 +25,6 @@ type Page =
 
 const LoggedInApp: React.FC<{ currentUser: User }> = ({ currentUser }) => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
-  const [exerciseToEdit, setExerciseToEdit] = useState<Exercise | null>(null);
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
-
-  const handleEditExercise = (exercise: Exercise | null) => {
-    setIsCreatingNew(exercise === null);
-    setExerciseToEdit(exercise);
-  };
-  const handleCloseEdit = () => {
-    setExerciseToEdit(null);
-    setIsCreatingNew(false);
-  };
-
-  const renderExerciseContent = (moduleType: ExerciseType) => {
-    if (exerciseToEdit !== null || isCreatingNew) {
-      return <ExerciseForm
-        exerciseToEdit={exerciseToEdit}
-        moduleType={moduleType}
-        onClose={handleCloseEdit}
-        currentUserRole={currentUser.role}
-      />;
-    }
-    return <ExercisesManagement
-      moduleType={moduleType}
-      onEdit={handleEditExercise}
-      currentUserRole={currentUser.role}
-    />;
-  };
 
   const renderContent = () => {
   switch (activePage) {
@@ -66,14 +35,8 @@ const LoggedInApp: React.FC<{ currentUser: User }> = ({ currentUser }) => {
         currentUserRole={currentUser.role}
         currentUserId={currentUser.id}
       />;
-    case 'Reading':
-      return renderExerciseContent('Reading');
-    case 'Writing':
-      return renderExerciseContent('Writing');
-    case 'Listening':
-      return renderExerciseContent('Listening');
-    case 'Speaking':
-      return renderExerciseContent('Speaking');
+    case 'Exercises Management':
+      return <ModulesManagement currentUserRole={currentUser.role} />;
     case 'Promo Codes':
       return <PromoCodes />;
     case 'Promo Modules':

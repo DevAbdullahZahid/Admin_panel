@@ -9,7 +9,7 @@ import { PlusIcon, SaveIcon, TrashIcon } from '../components/icons';
 
 // --- Utility Functions (Must be outside the main component) ---
 
-const moduleTypeToId = (m: ExerciseType): number => {
+const moduleTypeToId = (m: ExerciseType | string): number => {
     switch (m) {
         case 'Reading': return 1;
         case 'Writing': return 2;
@@ -23,60 +23,145 @@ const moduleTypeToId = (m: ExerciseType): number => {
  * Transforms the local Task object into the payload required by the backend /tasks API.
  * Includes task_id for PUT (update) requests.
  */
+const API_TASK_TYPE_MAP: Record<string, string> = {
+    'MCQ': 'mcq',
+    'Filling Blanks': 'filling_blanks',
+    'Matching': 'matching',
+    'QA': 'qa',
+    'Writing': 'writing',
+    'Speaking': 'speaking',
+};
+
+const API_TO_UI_TASK_TYPE: Record<string, string> = {
+    'mcq': 'MCQ',
+    'filling_blanks': 'Filling Blanks',
+    'matching': 'Matching',
+    'qa': 'QA',
+    'writing': 'Writing',
+    'speaking': 'Speaking',
+};
+
 const transformTaskForAPI = (task: Task, exerciseId: number): any => {
-    // 1. Base Payload (Common Fields)
-    const base: any = {
-        // CRITICAL: Use the task's API ID (apiId) for distinguishing POST vs. PUT
-        task_id: task.apiId || null, 
-        exercise_id: exerciseId,
-        type: task.taskType,
-        title: task.title,
-        description: task.description || '',
-        allowed_time: task.allowedTime || 0,
-        max_words: task.maxWords || null, // Included for compatibility (used in Writing)
-        min_words: task.minimumWordCount || null, 
+    const taskTypeMap: Record<string, string> = {
+        'MCQ': 'mcq',
+        'Filling Blanks': 'filling_blanks',
+        'Matching': 'matching',
+        'QA': 'qa',
+        'Writing': 'writing',
+        'Speaking': 'speaking'
     };
 
-    // 2. Type-Specific Payload Mapping
-    
-    // --- MCQ (Multiple Choice Questions) ---
-    if (task.taskType === 'MCQ' && task.questions) {
-        base.mcqs = task.questions.map((q: any) => ({
-            question: q.questionText || q.question || '',
-            options: (q.options || []).map((o: any) => ({ 
-                value: typeof o === 'object' ? o.value : o,
-                is_correct: typeof o === 'object' ? o.isCorrect : false,
+    const resolvedType = taskTypeMap[task.taskType] || task.taskType?.toLowerCase();
+
+    const base: any = {
+        exercise_id: exerciseId,
+        type: resolvedType,
+        title: task.title,
+        description: task.description || '',
+        allowed_time: Number(task.allowedTime) || 0,
+    };
+
+    // ✅ CRITICAL FIX: Only include task_id for existing tasks
+    if (task.apiId) {
+        base.task_id = task.apiId;
+    }
+
+    // --- MCQ ---
+    if (resolvedType === 'mcq') {
+        base.mcqs = (task.questions || []).map((q: any) => ({
+            question_text: q.questionText || q.question || '',
+            allow_multiple: !!(q.allowMultipleSelections ?? task.allowMultipleSelections),
+            options: (q.options || []).map((o: any) => ({
+                option_text: typeof o === 'object' ? o.value : String(o ?? ''),
+                is_true: typeof o === 'object' ? !!o.isCorrect : false,
             })),
-            correct_option_index: q.correctOptionIndex, 
         }));
     }
-    
-    // --- Filling Blanks ---
-    if (task.taskType === 'Filling Blanks' && task.blanks) {
-        base.filling_blanks = task.blanks.map((b: any) => ({
-            text_before: b.textBefore || '',
-            text_after: b.textAfter || '',
-            num_blanks: Number(b.numBlanks) || 1,
-            correct_answers: b.correctAnswers || [], 
-        }));
+
+    // --- Filling Blanks --- ✅ FIXED
+    if (resolvedType === 'filling_blanks') {
+        if (task.maxWordsPerBlank) {
+            base.max_words = Number(task.maxWordsPerBlank);
+        }
+        
+        base.filling_blanks = (task.blanks || []).map((b: any, index: number) => {
+            // Handle both string and array formats
+            let answersArray: string[] = [];
+            
+            if (Array.isArray(b.correctAnswers) && b.correctAnswers.length > 0) {
+                answersArray = b.correctAnswers;
+            } else if (b.correctAnswer) {
+                // Convert comma-separated string to array
+                answersArray = String(b.correctAnswer)
+                    .split(',')
+                    .map((ans: string) => ans.trim())
+                    .filter(Boolean);
+            }
+            
+            return {
+                question_text: b.questionText || b.textBefore || '',
+                correct_answer: answersArray.join(', '), // API expects comma-separated string
+                position: b.position || index + 1,
+            };
+        });
     }
 
     // --- Matching ---
-    if (task.taskType === 'Matching') {
-        base.group1 = (task.group1 || []).map((g: any) => typeof g === 'object' ? g.value : g);
-        base.group2 = (task.group2 || []).map((g: any) => typeof g === 'object' ? g.value : g);
-        if (task.answers) base.answers = task.answers;
-    }
-    
-    // --- QA (Question/Answer) ---
-    if (task.taskType === 'QA' && task.questions) {
-        base.question_prompts = task.questions.map((q: any) => typeof q === 'object' ? q.value : q); 
-        if (task.answers) base.answers = task.answers; 
+    if (resolvedType === 'matching') {
+        base.group1 = (task.group1 || []).map((g: any) => 
+            typeof g === 'object' ? g.value : g
+        );
+        base.group2 = (task.group2 || []).map((g: any) => 
+            typeof g === 'object' ? g.value : g
+        );
+        if (task.answers) {
+            base.answers = task.answers;
+        }
     }
 
+    // --- QA ---
+    if (resolvedType === 'qa') {
+        base.question_prompts = (task.questions || []).map((q: any) => 
+            q.value || q.questionText || ''
+        );
+        if (task.maxWordsPerAnswer) {
+            base.max_words = Number(task.maxWordsPerAnswer);
+        }
+        if (task.minimumWordCount) {
+            base.min_words = Number(task.minimumWordCount);
+        }
+        if (task.answers) {
+            base.answers = task.answers;
+        }
+    }
+
+    // --- Writing ---
+    if (resolvedType === 'writing') {
+        if (task.minimumWordCount) {
+            base.min_words = Number(task.minimumWordCount);
+        }
+        if (task.maxWords) {
+            base.max_words = Number(task.maxWords);
+        }
+        if (task.questions) {
+            base.question_prompts = task.questions.map((q: any) => 
+                q.value || q.questionText || ''
+            );
+        }
+    }
+
+    // --- Speaking ---
+    if (resolvedType === 'speaking') {
+        if (task.questions) {
+            base.question_prompts = task.questions.map((q: any) => 
+                q.value || q.questionText || ''
+            );
+        }
+    }
+
+    console.log('📤 Transformed Task Payload:', JSON.stringify(base, null, 2));
     return base;
 };
-
 // --- Interfaces and Types ---
 
 interface ExerciseWithIds extends Exercise {
@@ -96,18 +181,18 @@ type ExerciseFormInputs = {
 
 interface ExerciseFormProps {
     exerciseToEdit: ExerciseWithIds | null;
-    moduleType: ExerciseType;
+    moduleType: ExerciseType | string;
+    moduleId: number;
     onClose: () => void;
     currentUserRole: PortalUserRole;
 }
 
 // --- Main Component ---
 
-const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType, onClose }) => {
+const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType, moduleId, onClose }) => {
     const isEditing = !!exerciseToEdit;
 
-    // Use empty array if tasks shouldn't be loaded for non-Reading modules
-    const initialTasks = (moduleType === 'Reading' && exerciseToEdit?.tasks) ? exerciseToEdit.tasks : [];
+    const initialTasks = exerciseToEdit?.tasks ? exerciseToEdit.tasks : [];
     
     const [currentTasks, setCurrentTasks] = useState<Task[]>(initialTasks);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -118,6 +203,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
 
     // Asset IDs and states...
     const [passageId, setPassageId] = useState<number | null>(exerciseToEdit?.passage_id ?? null);
+    const [initialPassageText, setInitialPassageText] = useState<string>('');
     const [imageId, setImageId] = useState<number | null>(exerciseToEdit?.image_id ?? null);
     const [recordingId, setRecordingId] = useState<number | null>(exerciseToEdit?.recording_id ?? null);
     const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -141,27 +227,63 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
      * NOTE: You must ensure this maps nested data (mcqs, blanks) correctly for editing modal use.
      */
     const normalizeFetchedTask = (t: any): Task => {
-        // This is a placeholder; needs to be fully implemented to match your local Task structure
-        const baseTask: Task = {
-            id: String(t.task_id || t.id),         // Local UUID/ID
-            apiId: Number(t.task_id || t.id),      // CRITICAL: The API's ID for PUT/DELETE
-            taskType: t.type,
+        const resolvedType = API_TO_UI_TASK_TYPE[(t.type || '').toLowerCase()] || t.type || 'Matching';
+
+        const baseTask: any = {
+            id: String(t.task_id || t.id),
+            apiId: Number(t.task_id || t.id),
+            taskType: resolvedType,
             title: t.title,
             description: t.description || '',
             allowedTime: t.allowed_time || 0,
             minimumWordCount: t.min_words || undefined,
-            // Placeholder: Replace with actual normalization of t.mcqs, t.filling_blanks, etc.
-            questions: t.mcqs?.map((mcq: any) => ({ 
-                questionText: mcq.question, 
-                options: mcq.options, 
-                correctOptionIndex: mcq.correct_option_index 
-            })) || t.question_prompts || [], 
-            blanks: t.filling_blanks || [],
+            maxWords: t.max_words || undefined,
+            maxWordsPerBlank: t.max_words_per_blank || t.max_words || undefined,
+            allowMultipleSelections: t.allow_multiple || false,
             group1: t.group1 || [],
             group2: t.group2 || [],
             answers: t.answers || [],
         };
-        return baseTask;
+
+        if (resolvedType === 'MCQ') {
+            baseTask.questions = (t.mcqs || []).map((mcq: any) => ({
+                id: String(mcq.id || crypto.randomUUID()),
+                questionText: mcq.question_text || mcq.question || '',
+                allowMultipleSelections: !!mcq.allow_multiple,
+                options: (mcq.options || []).map((opt: any) => ({
+                    id: String(opt.id || crypto.randomUUID()),
+                    value: opt.option_text || opt.value || '',
+                    isCorrect: !!opt.is_true,
+                })),
+            }));
+        } else if (resolvedType === 'Filling Blanks') {
+            baseTask.blanks = (t.filling_blanks || []).map((blank: any, index: number) => {
+                const answerList = blank.correct_answer
+                    ? String(blank.correct_answer)
+                        .split(',')
+                        .map((ans: string) => ans.trim())
+                        .filter(Boolean)
+                    : [];
+                return {
+                    id: String(blank.id || crypto.randomUUID()),
+                    questionText: blank.question_text || '',
+                    correctAnswers: answerList,
+                    correctAnswer: answerList.join(', '),
+                    position: blank.position || index + 1,
+                };
+            });
+            baseTask.maxWordsPerBlank = t.max_words || t.max_words_per_blank || undefined;
+        } else if (resolvedType === 'QA' || resolvedType === 'Writing' || resolvedType === 'Speaking') {
+            const prompts = t.question_prompts || [];
+            baseTask.questions = prompts.map((prompt: string) => ({
+                id: crypto.randomUUID(),
+                value: prompt,
+            }));
+            if (t.max_words) baseTask.maxWordsPerAnswer = t.max_words;
+            if (t.min_words) baseTask.minimumWordCount = t.min_words;
+        }
+
+        return baseTask as Task;
     };
 
     // --- Core API Upload Helpers (Assumed correct) ---
@@ -208,8 +330,9 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
             // 1-3. Fetch Passage, Image, Recording 
             if (currentPassageId) {
                 const passageRes = await apiFetch(`/passages/${currentPassageId}`);
-                const passageText = passageRes?.data?.passage?.text || ''; 
+                const passageText = passageRes?.data?.passage?.text || '';
                 setValue('passage', passageText);
+                setInitialPassageText(passageText || '');
             }
             if (currentImageId) {
                 const imageRes = await apiFetch(`/images/${currentImageId}`);
@@ -220,20 +343,13 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                 setExistingRecordingUrl(recordingRes?.data?.recording?.url || null);
             }
             
-            // 4. Fetch Tasks (CONDITIONAL: Only for Reading module)
-            if (moduleType === 'Reading') { 
-                const tasksRes = await apiFetch(`/tasks?exercise_id=${exerciseId}`);
-                const fetchedTasks = tasksRes?.data?.tasks || [];
-                
-                if (Array.isArray(fetchedTasks)) {
-                    const normalizedTasks = fetchedTasks.map(normalizeFetchedTask);
-                    setCurrentTasks(normalizedTasks);
-                    setPendingTasksToUpload(normalizedTasks);
-                }
-            } else {
-                // Bypass tasks for non-Reading modules
-                setCurrentTasks([]);
-                setPendingTasksToUpload([]);
+            const tasksRes = await apiFetch(`/tasks?exercise_id=${exerciseId}`);
+            const fetchedTasks = tasksRes?.data?.tasks || [];
+            
+            if (Array.isArray(fetchedTasks)) {
+                const normalizedTasks = fetchedTasks.map(normalizeFetchedTask);
+                setCurrentTasks(normalizedTasks);
+                setPendingTasksToUpload(normalizedTasks);
             }
 
         } catch (err) {
@@ -266,10 +382,11 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
         } else {
             // Reset for new creation
             reset({ title: '', description: '', allowedTime: 40, passage: '' });
-            setCurrentTasks(moduleType === 'Reading' ? [] : []);
-            setPendingTasksToUpload(moduleType === 'Reading' ? [] : []);
+            setCurrentTasks([]);
+            setPendingTasksToUpload([]);
             setExerciseId(Date.now()); 
             setPassageId(null);
+            setInitialPassageText('');
             setImageId(null);
             setRecordingId(null);
             setExistingImageUrl(null);
@@ -295,10 +412,21 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
         setEditingTask(null);
     };
 
-    const handleRemoveTask = (taskId: string) => {
-        if (confirm('Remove this task?')) {
-            setCurrentTasks(prev => prev.filter(t => t.id !== taskId));
-            setPendingTasksToUpload(prev => prev.filter(t => t.id !== taskId));
+    const handleRemoveTask = async (taskId: string) => {
+        if (!confirm('Remove this task?')) return;
+
+        const taskToRemove = currentTasks.find(t => t.id === taskId);
+
+        setCurrentTasks(prev => prev.filter(t => t.id !== taskId));
+        setPendingTasksToUpload(prev => prev.filter(t => t.id !== taskId));
+
+        if (taskToRemove?.apiId) {
+            try {
+                await apiFetch(`/tasks/${taskToRemove.apiId}`, { method: 'DELETE' });
+            } catch (err) {
+                console.error('Failed to delete task:', err);
+                alert('Failed to delete task from server.');
+            }
         }
     };
 
@@ -308,7 +436,6 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
     const onSaveExercise: SubmitHandler<ExerciseFormInputs> = async (data) => {
         if (!data.title?.trim()) return alert('Title is required');
         
-        // 🛑 Task validation is now conditional
         if (moduleType === 'Reading' && currentTasks.length === 0) {
             return alert('Please add at least one task for the Reading module.');
         }
@@ -322,9 +449,14 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
             const exerciseTitle = data.title.trim();
 
             // 1-3. UPLOAD ASSETS
-            if ((moduleType === 'Reading' || moduleType === 'Writing') && data.passage?.trim()) {
-                finalPassageId = await uploadPassageApi(`${exerciseTitle} - Passage`, data.passage.trim());
+            const trimmedPassage = data.passage?.trim();
+            const normalizedInitialPassage = initialPassageText?.trim?.() || '';
+            const shouldUploadPassage = !!trimmedPassage && (!isEditing || trimmedPassage !== normalizedInitialPassage || !passageId);
+
+            if ((moduleType === 'Reading' || moduleType === 'Writing') && shouldUploadPassage) {
+                finalPassageId = await uploadPassageApi(`${exerciseTitle} - Passage`, trimmedPassage!);
                 if (!finalPassageId) throw new Error("Failed to upload passage."); 
+                setInitialPassageText(trimmedPassage || '');
             }
             if (moduleType === 'Reading' && selectedImageFile) { 
                 finalImageId = await uploadImageApi(selectedImageFile);
@@ -339,9 +471,11 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
             if (!finalExerciseId) throw new Error("Exercise ID could not be determined.");
 
             // 4. PREPARE MAIN EXERCISE PAYLOAD
+            const resolvedModuleId = moduleId || moduleTypeToId(moduleType);
+
             const exercisePayload = {
                 exercise_id: finalExerciseId,
-                module_id: moduleTypeToId(moduleType),
+                module_id: resolvedModuleId,
                 title: exerciseTitle,
                 description: data.description?.trim() || null,
                 allowed_time: Number(data.allowedTime) || 40,
@@ -374,24 +508,36 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                 finalExerciseId = officialExerciseId;
             }
 
-            // 6. UPLOAD PENDING TASKS (CONDITIONAL: Only for Reading module)
-            if (moduleType === 'Reading' && pendingTasksToUpload.length > 0) {
-                const uploadPromises = pendingTasksToUpload.map(task => {
-                    const taskPayload = transformTaskForAPI(task, finalExerciseId!);
-                    
-                    // Determine method and URL: POST for new tasks, PUT for existing
-                    const isExisting = !!taskPayload.task_id;
-                    const method = isExisting ? 'PUT' : 'POST';
-                    const url = isExisting ? `/tasks/${taskPayload.task_id}` : '/tasks';
-                    
-                    return apiFetch(url, { 
-                        method: method,
-                        body: JSON.stringify(taskPayload), 
-                    });
-                });
+            if (pendingTasksToUpload.length > 0) {
+                console.log('📋 Uploading tasks:', pendingTasksToUpload.length);
                 
-                await Promise.all(uploadPromises); 
+                for (const task of pendingTasksToUpload) {
+                    try {
+                        // Transform task
+                        const taskPayload = transformTaskForAPI(task, finalExerciseId!);
+                        
+                        // Determine if update or create based on apiId
+                        const isUpdate = !!task.apiId;
+                        const method = isUpdate ? 'PUT' : 'POST';
+                        const url = isUpdate ? `/tasks/${task.apiId}` : '/tasks';
+                        
+                        console.log(`📡 ${method} ${url}`, taskPayload);
+                        
+                        const result = await apiFetch(url, {
+                            method: method,
+                            body: JSON.stringify(taskPayload),
+                        });
+                        
+                        console.log(`✅ ${method} Success:`, result);
+                        
+                    } catch (err: any) {
+                        console.error(`❌ Failed to ${task.apiId ? 'update' : 'create'} task "${task.title}":`, err);
+                        throw new Error(`Task "${task.title}" failed: ${err.message}`);
+                    }
+                }
+                
                 setPendingTasksToUpload([]);
+                console.log('✅ All tasks uploaded successfully');
             }
             
             alert(`Exercise ${isEditing ? 'updated' : 'created'} successfully! ID: ${finalExerciseId}`);
@@ -513,8 +659,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                 </div>
             </form>
             
-            {/* Task list rendering (CONDITIONAL: Only for Reading module) */}
-            {moduleType === 'Reading' && (
+            {/* Task list rendering */}
                 <div className="bg-white p-6 rounded-lg shadow-md mt-8">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-semibold">Tasks ({currentTasks.length})</h2>
@@ -547,7 +692,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                         </div>
                     )}
                 </div>
-            )}
+            
             
             <AddTaskModal
                 isOpen={isModalOpen}

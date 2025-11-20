@@ -50,62 +50,63 @@ const Dashboard: React.FC = () => {
 
   // --- (MODIFIED) useEffect to fetch data ---
   useEffect(() => {
-    
-    // --- (NEW) Function to fetch users from the API ---
+  
+    // Corrected fetchUsers function
     const fetchUsers = async () => {
       try {
-        const response = await apiFetch('/users', { method: 'GET' });
-        if (!response.ok) throw new Error('Failed to fetch users');
-        
-        const data = await response.json();
-        
-        // --- (ASSUMPTION) ---
-        // We assume the API returns { users: [...] }
-        // Change 'data.users' if your API has a different key
-        const usersArray = data.users; 
-        
+        const data = await apiFetch('/users', { method: 'GET' });
+    
+        console.log("[Dashboard] Full Users API Response:");
+    
+        // Extract correctly based on real API structure
+        const usersArray = data?.data?.users;
+    
         if (Array.isArray(usersArray)) {
           setTotalUsers(usersArray.length);
         } else {
-          console.warn("[Dashboard] Fetched user data is not an array.");
+          console.warn("[Dashboard] User API response is not an array");
           setTotalUsers(0);
         }
+    
       } catch (error) {
         console.error("[Dashboard] Error fetching users from API:", error);
         setTotalUsers(0);
       }
     };
     
-    // --- (OLD) Logic for exercises (still using localStorage) ---
-    // We will update this when you provide the exercise API endpoints
-    const fetchExercises = () => {
-        try {
-          const storedExercises = localStorage.getItem(EXERCISES_STORAGE_KEY);
-          if (storedExercises) {
-            const exercises: Exercise[] = JSON.parse(storedExercises);
-             if (Array.isArray(exercises)) {
-                setTotalExercises(exercises.length);
-             } else {
-                 console.warn("[Dashboard] Stored exercise data is not an array.");
-                 setTotalExercises(0);
-             }
-          } else {
-              setTotalExercises(0);
-          }
-        } catch (error) {
-          console.error("[Dashboard] Error parsing exercises from localStorage:", error);
-          setTotalExercises(0);
-        }
-    };
+  
+    // FIX: Add missing fetchExercises
+    // FIX: Fetch exercises from API instead of localStorage
+const fetchExercises = async () => {
+  try {
+    const data = await apiFetch('/exercises', { method: 'GET' });
 
-    // --- (NEW) Call the fetch functions ---
+    console.log("[Dashboard] All Exercises API Response:");
+
+    // Extract exercises array
+    const exercisesArray = data?.data?.exercises;
+
+    if (Array.isArray(exercisesArray)) {
+      setTotalExercises(exercisesArray.length);
+    } else {
+      console.warn("[Dashboard] Exercise API response is not an array");
+      setTotalExercises(0);
+    }
+
+  } catch (error) {
+    console.error("[Dashboard] Error fetching exercises from API:", error);
+    setTotalExercises(0);
+  }
+};
+
+  
+    // Call all functions
     fetchUsers();
-    fetchExercises(); // This still uses localStorage
+    fetchExercises();
     setActivities(getActivityLog());
-
-  }, []); // Empty dependency array means this runs once on mount
-  // --- (END OF MODIFICATION) ---
-
+  
+  }, []); 
+  
 
   // --- Quick Stats (Now reflects dynamic data where available) ---
   const activeNowValue = currentUser ? '1 User' : '0 Users';

@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useForm, useFieldArray, SubmitHandler, UseFormReturn } from 'react-hook-form';
-import { Task, TaskType, MatchingTask, FillingBlanksTask, MCQTask, QATask, WritingTask } from '../types';
+import { Task, TaskType } from '../types';
 import { PlusIcon, TrashIcon } from './icons';
 
 interface AddTaskModalProps {
@@ -18,22 +18,18 @@ type TaskFormInputs = {
     title: string;
     description: string;
     allowedTime: number;
-    // Matching
-    group1: { value: string, id?: string }[];
-    group2: { value: string, id?: string }[];
-    // Filling Blanks
+    group1: { value: string; id?: string }[];
+    group2: { value: string; id?: string }[];
     maxWordsPerBlank: number;
-    blanks: { textBefore: string, numBlanks: number, textAfter?: string, id?: string }[]; // Updated structure
-    // MCQ
+    blanks: { textBefore?: string; questionText?: string; numBlanks: number; textAfter?: string; correctAnswer?: string; correctAnswers?: string[]; id?: string }[];
     allowMultipleSelections: boolean;
-    questions: { 
-        questionText: string, 
-        id?: string, 
-        options: { value: string, id?: string }[] 
-    }[]; 
-    // QA
+    questions: {
+        questionText?: string;
+        value?: string;
+        id?: string;
+        options?: { value: string; isCorrect?: boolean; id?: string }[];
+    }[];
     maxWordsPerAnswer: number;
-    // Writing
     minimumWordCount: number;
 };
 
@@ -47,9 +43,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
       group1: [{ value: '' }],
       group2: [{ value: '' }],
       maxWordsPerBlank: 1,
-      blanks: [{ textBefore: '', numBlanks: 1, textAfter: '' }], // Updated default
+      blanks: [{ questionText: '', textBefore: '', numBlanks: 1, textAfter: '', correctAnswer: '', correctAnswers: [] }],
       allowMultipleSelections: false,
-      questions: [{ questionText: '', options: [{ value: '' }] }],
+      questions: [{ questionText: '', options: [{ value: '', isCorrect: false }] }],
       maxWordsPerAnswer: 20,
       minimumWordCount: 150,
     }
@@ -75,10 +71,25 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
                 group2: isMatching ? task.group2 : [{ value: '' }],
                 
                 maxWordsPerBlank: task.maxWordsPerBlank || 1,
-                blanks: isFillingBlanks ? task.blanks : [{ textBefore: '', numBlanks: 1, textAfter: '' }],
+                blanks: isFillingBlanks
+                    ? (task.blanks || []).map((blank: any) => ({
+                        ...blank,
+                        questionText: blank.questionText || blank.textBefore || '',
+                        correctAnswer: Array.isArray(blank.correctAnswers) ? blank.correctAnswers.join(', ') : (blank.correctAnswer || ''),
+                        correctAnswers: blank.correctAnswers || [],
+                    }))
+                    : [{ questionText: '', textBefore: '', numBlanks: 1, textAfter: '', correctAnswer: '', correctAnswers: [] }],
                 
                 allowMultipleSelections: task.allowMultipleSelections || false,
-                questions: isMCQ ? task.questions : [{ questionText: '', options: [{ value: '' }] }],
+                questions: isMCQ
+                    ? (task.questions || []).map((q: any) => ({
+                        ...q,
+                        options: (q.options || []).map((opt: any) => ({
+                            ...opt,
+                            isCorrect: !!opt.isCorrect,
+                        })),
+                    }))
+                    : [{ questionText: '', options: [{ value: '', isCorrect: false }] }],
                 
                 maxWordsPerAnswer: task.maxWordsPerAnswer || 20,
                 minimumWordCount: task.minimumWordCount || 150,
@@ -92,9 +103,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
                 group1: [{ value: '' }],
                 group2: [{ value: '' }],
                 maxWordsPerBlank: 1,
-                blanks: [{ textBefore: '', numBlanks: 1, textAfter: '' }], // Updated reset default
+                blanks: [{ questionText: '', textBefore: '', numBlanks: 1, textAfter: '', correctAnswer: '', correctAnswers: [] }], // Updated reset default
                 allowMultipleSelections: false,
-                questions: [{ questionText: '', options: [{ value: '' }] }],
+                questions: [{ questionText: '', options: [{ value: '', isCorrect: false }] }],
                 maxWordsPerAnswer: 20,
                 minimumWordCount: 150,
             });
@@ -111,18 +122,71 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
   const onSubmit: SubmitHandler<TaskFormInputs> = (data) => {
     const processedData: any = {
         ...data,
-        group1: data.group1?.map(item => ({ ...item, id: item.id || new Date().toISOString() })),
-        group2: data.group2?.map(item => ({ ...item, id: item.id || new Date().toISOString() })),
-        blanks: data.blanks?.map(item => ({ 
+        taskType: data.taskType,
+        title: data.title,
+        description: data.description,
+        allowedTime: data.allowedTime,
+    };
+
+    // Process Matching
+    if (data.taskType === 'Matching') {
+        processedData.group1 = data.group1?.map(item => ({ 
             ...item, 
-            id: item.id || new Date().toISOString(),
-            numBlanks: Number(item.numBlanks) || 1 
-        })),
-        questions: data.questions?.map(q => ({ 
-            ...q, 
+            id: item.id || new Date().toISOString() 
+        }));
+        processedData.group2 = data.group2?.map(item => ({ 
+            ...item, 
+            id: item.id || new Date().toISOString() 
+        }));
+    }
+
+   // Process Filling Blanks
+if (data.taskType === 'Filling Blanks') {
+  processedData.blanks = data.blanks?.map((item, index) => {
+      // Convert comma-separated string to array
+      const answersArray = item.correctAnswer
+          ? item.correctAnswer.split(',').map(ans => ans.trim()).filter(Boolean)
+          : [];
+      
+      return {
+          questionText: item.questionText || item.textBefore || '',
+          textBefore: item.textBefore || '',
+          textAfter: item.textAfter || '',
+          numBlanks: Number(item.numBlanks) || 1,
+          correctAnswer: item.correctAnswer || '', // Keep original string
+          correctAnswers: answersArray, // Add array version
+          position: index + 1,
+          id: item.id || crypto.randomUUID()
+      };
+  });
+  processedData.maxWordsPerBlank = data.maxWordsPerBlank;
+}
+
+    // Process MCQ
+    if (data.taskType === 'MCQ') {
+        processedData.questions = data.questions?.map(q => ({ 
             id: q.id || new Date().toISOString(),
-            options: q.options?.map((opt: any) => ({ ...opt, id: opt.id || new Date().toISOString() }))
-        })),
+            questionText: q.questionText,
+            options: q.options?.map((opt: any) => ({ 
+                value: opt.value,
+                id: opt.id || new Date().toISOString()
+            }))
+        }));
+        processedData.allowMultipleSelections = data.allowMultipleSelections;
+    }
+
+    // Process QA
+    if (data.taskType === 'QA') {
+        processedData.questions = data.questions?.map(q => ({
+            value: q.value,
+            id: q.id || new Date().toISOString()
+        }));
+        processedData.maxWordsPerAnswer = data.maxWordsPerAnswer;
+    }
+
+    // Process Writing
+    if (data.taskType === 'Writing') {
+        processedData.minimumWordCount = data.minimumWordCount;
     }
 
     const finalTask: Task = { 
@@ -132,8 +196,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
 
     onSaveTask(finalTask, editingTask ? editingTask.id : null);
     onClose();
-  };
-  
+};
   const commonInputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
   const labelClasses = "block text-sm font-medium text-gray-700";
   const buttonClasses = "inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white";
@@ -157,6 +220,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
                   <option value="MCQ">Multiple Choice (MCQ)</option>
                   <option value="QA">Question & Answer (QA)</option>
                   <option value="Writing">Writing</option>
+                  <option value="Speaking">Speaking</option>
                 </select>
               </div>
               <div>
@@ -217,6 +281,14 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
                                   <button type="button" onClick={() => blankRemove(index)} className="text-red-500"><TrashIcon className="w-4 h-4"/></button>
                               </div>
                               <div>
+                                  <label htmlFor={`blanks.${index}.questionText`} className="text-xs text-gray-500">Question / Prompt</label>
+                                  <input 
+                                      {...register(`blanks.${index}.questionText` as const)} 
+                                      className={commonInputClasses} 
+                                      placeholder="Enter the sentence or question"
+                                  />
+                              </div>
+                              <div>
                                   <label htmlFor={`blanks.${index}.textBefore`} className="text-xs text-gray-500">Text Before Blank(s)</label>
                                   <input 
                                       {...register(`blanks.${index}.textBefore` as const)} 
@@ -239,6 +311,14 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
                                       {...register(`blanks.${index}.textAfter` as const)} 
                                       className={commonInputClasses} 
                                       placeholder="Optional text after..."
+                                  />
+                              </div>
+                              <div>
+                                  <label htmlFor={`blanks.${index}.correctAnswer`} className="text-xs text-gray-500">Correct Answer(s) (comma separated)</label>
+                                  <input 
+                                      {...register(`blanks.${index}.correctAnswer` as const)} 
+                                      className={commonInputClasses} 
+                                      placeholder="e.g., answer1, answer2"
                                   />
                               </div>
                           </div>
@@ -278,7 +358,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({ isOpen, onClose, editingTas
                       type="button" 
                       onClick={() => mcqAppend({ 
                           questionText: '', 
-                          options: [{ value: '', id: new Date().toISOString() }] 
+                          options: [{ value: '', isCorrect: false, id: crypto.randomUUID() }] 
                       })} 
                       className={`${buttonClasses} bg-blue-500 hover:bg-blue-600`}
                   >
@@ -335,16 +415,24 @@ const MCQOptions: React.FC<{nestIndex: number, control: UseFormReturn<TaskFormIn
         <div>
             <label className="text-sm font-medium text-gray-600">Options</label>
             {fields.map((item, k) => (
-                <div key={item.id} className="flex items-center mt-1">
+                <div key={item.id} className="flex items-center mt-1 gap-2">
                     <input
                         {...register(`questions.${nestIndex}.options.${k}.value` as const)}
                         className="mt-1 block w-full px-2 py-1 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-400 focus:border-blue-400 sm:text-sm"
                         placeholder={`Option ${k + 1}`}
                     />
-                    <button type="button" onClick={() => remove(k)} className="ml-2 text-red-500"><TrashIcon className="w-4 h-4"/></button>
+                    <label className="flex items-center gap-1 text-xs text-gray-600">
+                        <input
+                            type="checkbox"
+                            {...register(`questions.${nestIndex}.options.${k}.isCorrect` as const)}
+                            className="rounded text-green-600 focus:ring-green-500"
+                        />
+                        Correct
+                    </label>
+                    <button type="button" onClick={() => remove(k)} className="text-red-500"><TrashIcon className="w-4 h-4"/></button>
                 </div>
             ))}
-            <button type="button" onClick={() => append({ value: '', id: new Date().toISOString() })} className="mt-2 inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-500 hover:bg-green-600">
+            <button type="button" onClick={() => append({ value: '', isCorrect: false, id: crypto.randomUUID() })} className="mt-2 inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-500 hover:bg-green-600">
                 <PlusIcon className="w-3 h-3 mr-1"/>Add Option
             </button>
         </div>
