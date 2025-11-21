@@ -15,13 +15,15 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import { apiFetch } from '../utils/apiService';
+
 interface Submission {
   id: number;
   name: string;
   email: string;
   subject: string;
   message: string;
-  createdAt: string | null; // updated to match API
+  createdAt: string | null;
 }
 
 export default function ContactFormSubmissions() {
@@ -31,60 +33,34 @@ export default function ContactFormSubmissions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return null;
-    return (
-      localStorage.getItem('access_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('authToken')
-    );
-  };
-
   const fetchSubmissions = async () => {
     setLoading(true);
     setError('');
 
-    const token = getAuthToken();
-    if (!token) {
-      setError('Authentication required. Please log in again.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const res = await fetch(
-        'https://dev-api-iprep.rezotera.com/api/v1/support-inquiries/',
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await apiFetch('/contact-form/', {
+        method: 'GET',
+      });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('API Error:', res.status, errorText);
-        if (res.status === 401) setError('Session expired. Please log in again.');
-        else if (res.status === 403) setError('You do not have permission to view inquiries.');
-        else setError(`Error fetching submissions. Status: ${res.status}`);
-        return;
-      }
+      console.log('API Response:', response);
 
-      const data = await res.json();
-      console.log('API Response:', data);
-
-      // Map API inquiries to our state
-      const items: Submission[] = (data?.data?.inquiries || []).map((item: any) => ({
-        ...item,
-        createdAt: item.createdAt || null,
-      }));
+      const items: Submission[] =
+        response?.data?.inquiries?.map((item: any) => ({
+          ...item,
+          createdAt: item.createdAt || null,
+        })) || [];
 
       setSubmissions(items);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Fetch failed:', err);
-      setError('Failed to connect to server. Please try again later.');
+
+      if (err?.status === 401) {
+        setError('Session expired. Please log in again.');
+      } else if (err?.status === 403) {
+        setError('You do not have permission to view inquiries.');
+      } else {
+        setError('Failed to connect to server. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }
@@ -221,7 +197,9 @@ export default function ContactFormSubmissions() {
 
                       <td className="px-6 py-5 text-sm text-gray-500 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy • h:mm a') : '—'}
+                        {item.createdAt
+                          ? format(new Date(item.createdAt), 'MMM d, yyyy • h:mm a')
+                          : '—'}
                       </td>
                     </tr>
                   ))}

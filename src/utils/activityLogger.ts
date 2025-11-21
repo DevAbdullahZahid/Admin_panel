@@ -7,8 +7,9 @@ interface ActivityEntry {
   message: string;
 }
 
-export const logActivity = (message: string): void => {
+export const logActivity = (action: string, userName?: string): void => {
   const now = new Date();
+  const message = userName ? `${userName} ${action}` : action;
   const newEntry: ActivityEntry = {
     timestamp: now.toISOString(),
     message: `${message} at ${now.toLocaleTimeString()}`,

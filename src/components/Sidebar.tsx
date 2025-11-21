@@ -1,24 +1,24 @@
 // src/components/Sidebar.tsx
 import React from 'react';
 import { UsersIcon, BookOpenIcon } from './icons';
-import { 
-  Home, 
-  Inbox, 
-  MessageSquare, 
-  Gift, 
+import {
+  Home,
+  Inbox,
+  MessageSquare,
+  Gift,
   Settings,
 } from 'lucide-react';
 import { PortalUserRole } from '../types';
 
-// Fixed Page type — you had a syntax error here!
+// Fixed Page type
 type Page =
   | 'Dashboard'
   | 'Users Management'
   | 'Exercises Management'
   | 'Promo Codes'
   | 'Promo Modules'
-  | 'Contact Form Submissions'   // Fixed: was missing |
-  | 'Inquiries';                  // Fixed: now valid
+  | 'Contact Form Submissions'
+  | 'Inquiries';
 
 interface NavItem {
   name: string;

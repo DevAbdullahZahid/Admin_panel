@@ -1,6 +1,9 @@
-// src/utils/apiService.ts - FINAL PRODUCTION VERSION
+// src/utils/apiService.ts
 
-const API_BASE_URL = 'https://dev-api-iprep.rezotera.com/api/v1';
+// Use environment variable for API base URL  
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+// --- Authentication Helpers ---
 
 const getToken = (): string | null => {
     return localStorage.getItem('authToken');
@@ -12,10 +15,11 @@ export const setToken = (token: string): void => {
 
 export const removeToken = (): void => {
     localStorage.removeItem('authToken');
-    localStorage.removeItem('user'); // optional: clear user too
+    localStorage.removeItem('user');
 };
 
-// Helper: Automatically parse JSON and handle errors
+// --- Response Handler Helper ---
+
 const handleResponse = async (response: Response) => {
     const contentType = response.headers.get('content-type');
     const isJson = contentType && contentType.includes('application/json');
@@ -28,40 +32,68 @@ const handleResponse = async (response: Response) => {
     }
 
     if (!response.ok) {
-        // 401 → let useAuth handle it (don't redirect here)
         if (response.status === 401) {
             removeToken();
-            // Don't redirect — let your auth context do it
         }
 
-        const errorMessage = data?.message || data?.error || response.statusText;
-        throw new Error(errorMessage || `HTTP ${response.status}`);
+        // Extract detailed error message from API response
+        // Handle both string and array error messages
+        let errorMessage = response.statusText || `HTTP ${response.status}`;
+
+        if (data?.message) {
+            if (Array.isArray(data.message)) {
+                // Join array messages with newlines
+                errorMessage = data.message.join('\n');
+            } else if (typeof data.message === 'object') {
+                errorMessage = JSON.stringify(data.message);
+            } else {
+                errorMessage = String(data.message);
+            }
+        } else if (data?.error) {
+            errorMessage = typeof data.error === 'object' ? JSON.stringify(data.error) : String(data.error);
+        } else if (data?.detail) {
+            errorMessage = typeof data.detail === 'object' ? JSON.stringify(data.detail) : String(data.detail);
+        }
+
+        // Log the full error for debugging
+        console.error('[API Error]', {
+            status: response.status,
+            statusText: response.statusText,
+            message: errorMessage,
+            fullResponse: data
+        });
+
+        const error = new Error(errorMessage);
+        (error as any).status = response.status;
+        (error as any).data = data;
+        throw error;
     }
 
     return data;
 };
 
-export const apiFetch = async (
-    endpoint: string,
-    options: RequestInit = {}
-): Promise<any> => {
+// --- Main Fetch Function ---
+
+export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const token = getToken();
-    const headers = new Headers(options.headers || {});
 
-    // FIX: Use .set() to prevent duplicate Content-Type headers
-    // Only set JSON if the body is present (POST/PUT) and is not FormData (for file uploads).
-    if (options.body && !(options.body instanceof FormData)) {
-        headers.set('Content-Type', 'application/json');
-    }
+    // Don't set Content-Type for FormData - browser will set it automatically with boundary
+    const isFormData = options.body instanceof FormData;
 
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
+    const headers: HeadersInit = {
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+    };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const config: RequestInit = {
         ...options,
         headers,
-    });
+        credentials: 'omit',
+    };
+
+    const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const response = await fetch(`${API_BASE_URL}${path}`, config);
 
     return handleResponse(response);
 };

@@ -3,14 +3,13 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, PortalUserRole } from '../types';
 import { logActivity } from '../utils/activityLogger';
-// Import our new API helpers
 import { apiFetch, setToken, removeToken } from '../utils/apiService';
 
-// --- (NEW) Helper function to standardize roles ---
+// Helper function to standardize roles
 const normalizeRole = (role: string): PortalUserRole => {
-  if (!role) return 'User'; // Default to 'User' if role is missing
+  if (!role) return 'User';
   const lowerRole = role.toLowerCase();
-  
+
   switch (lowerRole) {
     case 'superadmin':
       return 'SuperAdmin';
@@ -21,16 +20,14 @@ const normalizeRole = (role: string): PortalUserRole => {
     case 'user':
       return 'User';
     default:
-      return 'User'; // Safely default any unknown roles
+      return 'User';
   }
 };
-// --------------------------------------------------
-
 
 interface AuthContextType {
   currentUser: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<true>; // Throws error on fail
+  login: (email: string, password: string) => Promise<true>;
   logout: () => void;
 }
 
@@ -38,29 +35,36 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start as true
+  const [isLoading, setIsLoading] = useState(true);
 
-  // This function checks if a token exists and fetches the user
+  // Check if a token exists and fetch the user
   const checkAuth = async () => {
     setIsLoading(true);
     try {
-      const response = await apiFetch('/users/me', { method: 'GET' });
-      if (!response.ok) throw new Error('Not authenticated');
-      const userData = await response.json();
-      
+      // First check if we have a token - if not, skip the API call
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setCurrentUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // apiFetch returns parsed data directly, not Response object
+      const userData = await apiFetch('/users/me', { method: 'GET' });
+
       const user: User = {
         id: userData.id,
         name: `${userData.firstName} ${userData.lastName}`,
         email: userData.email,
-        role: normalizeRole(userData.role), // <-- (FIX APPLIED HERE)
+        role: normalizeRole(userData.role),
         isActive: userData.isActive,
       };
 
       setCurrentUser(user);
-
     } catch (error) {
+      console.error('Authentication check failed:', error);
       setCurrentUser(null);
-      removeToken(); // Clear any invalid token
+      removeToken();
     } finally {
       setIsLoading(false);
     }
@@ -72,59 +76,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string): Promise<true> => {
-  try {
-    const response = await fetch(
-      'https://dev-api-iprep.rezotera.com/api/v1/auth/login',
-      {
+    try {
+      // Use apiFetch for consistency
+      const result = await apiFetch('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+      });
+
+      // Handle non-200 or non-successful responses
+      if (result.code !== 200 || result.status !== 'success') {
+        throw new Error(result.message || 'Login failed. Please check your credentials.');
       }
-    );
 
-    const result = await response.json();
+      // Extract token and user
+      const token = result.data?.token;
+      const userFromLogin = result.data?.user;
 
-    // Handle non-200 or non-successful responses
-    if (result.code !== 200 || result.status !== 'success') {
-      throw new Error(result.message || 'Login failed. Please check your credentials.');
+      if (!token) throw new Error('Login successful, but no auth token was provided.');
+      if (!userFromLogin) throw new Error('Login successful, but no user object was provided.');
+
+      // Save the token
+      setToken(token);
+
+      // Normalize and prepare user for React Context
+      const userForContext: User = {
+        id: userFromLogin.id,
+        name: `${userFromLogin.firstName} ${userFromLogin.lastName}`,
+        email: userFromLogin.email,
+        role: normalizeRole(userFromLogin.role),
+        isActive: userFromLogin.isActive,
+      };
+
+      // Set in state
+      setCurrentUser(userForContext);
+
+      // Log activity for audit
+      logActivity('logged in', userForContext.name);
+
+      return true;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw new Error(error.message || 'Something went wrong during login.');
     }
-
-    // ✅ Correctly extract token and user
-    const token = result.data?.token;
-    const userFromLogin = result.data?.user;
-
-    if (!token) throw new Error('Login successful, but no auth token was provided.');
-    if (!userFromLogin) throw new Error('Login successful, but no user object was provided.');
-
-    // 1. Save the token securely
-    setToken(token);
-
-    // 2. Normalize and prepare user for React Context
-    const userForContext: User = {
-      id: userFromLogin.id,
-      name: `${userFromLogin.firstName} ${userFromLogin.lastName}`,
-      email: userFromLogin.email,
-      role: normalizeRole(userFromLogin.role),
-      isActive: userFromLogin.isActive,
-    };
-
-    // 3. Set in state
-    setCurrentUser(userForContext);
-
-    // 4. Log activity (for audit / analytics)
-    logActivity('logged in', userForContext.name);
-
-    return true;
-  } catch (error: any) {
-    console.error('Login error:', error);
-    throw new Error(error.message || 'Something went wrong during login.');
-  }
-};
-
+  };
 
   const logout = () => {
     if (currentUser) {
-      logActivity(`logged out`, currentUser.name);
+      logActivity('logged out', currentUser.name);
     }
     setCurrentUser(null);
     removeToken();

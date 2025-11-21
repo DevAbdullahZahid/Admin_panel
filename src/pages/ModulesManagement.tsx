@@ -21,26 +21,18 @@ interface ModuleRecord {
 
 type CanonicalExerciseType = 'Reading' | 'Writing' | 'Listening' | 'Speaking';
 
-const moduleIdToCanonicalType: Record<number, CanonicalExerciseType> = {
-  1: 'Reading',
-  2: 'Writing',
-  3: 'Listening',
-  4: 'Speaking',
-};
-
 const guessCanonicalType = (module?: ModuleRecord | null): CanonicalExerciseType | string => {
   if (!module) return 'Reading';
-  if (moduleIdToCanonicalType[module.module_id]) {
-    return moduleIdToCanonicalType[module.module_id];
-  }
 
+  // Always use the module's actual type field
   const label = module.type?.trim().toLowerCase();
   if (label?.includes('reading')) return 'Reading';
   if (label?.includes('writing')) return 'Writing';
   if (label?.includes('listening')) return 'Listening';
   if (label?.includes('speaking')) return 'Speaking';
 
-  return module.type || 'Reading';
+  // Capitalize first letter for display
+  return module.type?.charAt(0).toUpperCase() + module.type?.slice(1) || 'Reading';
 };
 
 interface ExerciseRecord {
@@ -193,6 +185,10 @@ const ModulesManagement: React.FC<ModulesManagementProps> = ({ currentUserRole }
 
   const handleModuleFormSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    console.log('[Module Form] Submit triggered');
+    console.log('[Module Form] Form state:', moduleFormState);
+
     if (!moduleFormState.type.trim()) {
       setModuleFormError('Module name is required.');
       return;
@@ -202,27 +198,37 @@ const ModulesManagement: React.FC<ModulesManagementProps> = ({ currentUserRole }
     setModuleFormError(null);
     try {
       const payload = {
-        type: moduleFormState.type.trim(),
+        type: moduleFormState.type.trim().toLowerCase(), // API requires lowercase
         description: moduleFormState.description?.trim() || null,
       };
 
+      console.log('[Module Form] Submitting payload:', payload);
+      console.log('[Module Form] Is editing:', moduleBeingEdited ? 'Yes' : 'No');
+
       if (moduleBeingEdited) {
+        console.log('[Module Form] Updating module ID:', moduleBeingEdited.module_id);
         await apiFetch(`/modules/${moduleBeingEdited.module_id}`, {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
+        console.log('[Module Form] Module updated successfully');
+        alert(`Module "${moduleFormState.type}" updated successfully!`);
       } else {
+        console.log('[Module Form] Creating new module');
         await apiFetch('/modules', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
+        console.log('[Module Form] Module created successfully');
+        alert(`Module "${moduleFormState.type}" created successfully!`);
       }
 
       closeModuleForm();
       await fetchModules();
     } catch (err: any) {
-      console.error('Failed to save module:', err);
+      console.error('[Module Form] Failed to save module:', err);
       setModuleFormError(err.message || 'Failed to save module');
+      alert(`Error: ${err.message || 'Failed to save module'}`);
     } finally {
       setModuleFormSubmitting(false);
     }
@@ -549,9 +555,8 @@ const ModulesManagement: React.FC<ModulesManagementProps> = ({ currentUserRole }
                     <div className="mt-4 text-sm text-gray-400">
                       Status:{' '}
                       <span
-                        className={`font-medium ${
-                          module.isActive ? 'text-green-600' : 'text-gray-500'
-                        }`}
+                        className={`font-medium ${module.isActive ? 'text-green-600' : 'text-gray-500'
+                          }`}
                       >
                         {module.isActive ? 'Active' : 'Inactive'}
                       </span>

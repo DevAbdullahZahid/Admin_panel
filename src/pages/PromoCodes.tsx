@@ -1,9 +1,10 @@
 // src/pages/PromoCodes.tsx
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/apiService';
+import { useAuth } from '../hooks/useAuth';
 
 interface PromoData {
-  id?: number; // optional for existing promos
+  id?: number;
   user_id: number;
   promo_type: 'flat' | 'percentage' | 'string';
   discount: number;
@@ -11,11 +12,13 @@ interface PromoData {
   start_at_time: string;
   promo_code: string;
   max_uses: number;
+  current_uses?: number; // Added for display
 }
 
 const PromoCodes: React.FC = () => {
+  const { currentUser } = useAuth(); // Get current user
   const [promoData, setPromoData] = useState<PromoData>({
-    user_id: 1,
+    user_id: 0, // Will be updated with currentUser.id
     promo_type: 'flat',
     discount: 0,
     valid_for_hours: 24,
@@ -24,6 +27,13 @@ const PromoCodes: React.FC = () => {
     max_uses: 0,
   });
 
+  // Update user_id when currentUser is loaded
+  useEffect(() => {
+    if (currentUser) {
+      setPromoData(prev => ({ ...prev, user_id: Number(currentUser.id) }));
+    }
+  }, [currentUser]);
+
   const [promos, setPromos] = useState<PromoData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -31,9 +41,14 @@ const PromoCodes: React.FC = () => {
   const fetchPromos = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch('/promocode', { method: 'GET' });
-      // Adjust based on your API response
-      setPromos(data.data || []);
+      // Fix: Add trailing slash to prevent 307 Redirect -> CORS Error
+      const response = await apiFetch('/promocode/', { method: 'GET' });
+      // API returns { data: { promocodes: [...] } } or similar, need to check response structure
+      // Based on other endpoints, it might be response.data or response directly if apiFetch handles it.
+      // Let's assume apiFetch returns the parsed JSON.
+      // If the API follows the pattern: { code: 200, message: "...", data: { promocodes: [] } }
+      const list = response.data?.promocodes || response.data || [];
+      setPromos(Array.isArray(list) ? list : []);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching promos:', err);
@@ -54,14 +69,15 @@ const PromoCodes: React.FC = () => {
     try {
       const payload = { ...promoData };
 
-      await apiFetch('/promocode', {
+      // Fix: Add trailing slash
+      await apiFetch('/promocode/', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
 
       alert('Promo created successfully!');
       setPromoData({
-        user_id: 1,
+        user_id: Number(currentUser?.id) || 0,
         promo_type: 'flat',
         discount: 0,
         valid_for_hours: 24,
@@ -71,9 +87,9 @@ const PromoCodes: React.FC = () => {
       });
 
       fetchPromos(); // Refresh the list
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating promo:', err);
-      alert('Failed to create promo!');
+      alert(`Failed to create promo: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -95,7 +111,7 @@ const PromoCodes: React.FC = () => {
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">🎁 Create New Promo Code</h1>
-      
+
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-xl shadow-lg max-w-lg space-y-5 mb-8">
         <div>
           <label className="block text-sm font-semibold text-gray-600">Promo Code</label>
@@ -123,7 +139,7 @@ const PromoCodes: React.FC = () => {
 
         <div>
           <label className="block text-sm font-semibold text-gray-600">Start Time</label>
-          <input type="datetime-local" name="start_at_time" value={promoData.start_at_time.slice(0,16)} onChange={handleChange} className="w-full mt-2 p-2 border rounded-lg" required />
+          <input type="datetime-local" name="start_at_time" value={promoData.start_at_time.slice(0, 16)} onChange={handleChange} className="w-full mt-2 p-2 border rounded-lg" required />
         </div>
 
         <div>

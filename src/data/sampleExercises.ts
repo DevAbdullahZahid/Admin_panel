@@ -1,7 +1,7 @@
 // src/data/sampleExercises.ts
 
 import { Exercise } from '../types';
-import axios from 'axios';
+
 // Helper function for generating unique IDs (since we use new Date().toISOString() elsewhere)
 const generateId = () => Math.random().toString(36).substring(2, 9);
 

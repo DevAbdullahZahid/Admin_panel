@@ -1,13 +1,11 @@
 // src/types.ts
 
 // ===================================
-// AUTH/ADMIN USER TYPE (Portal Login)
+// TASK TYPES
 // ===================================
 
-// ============================================
-// 1. FIXED types.ts - Add Complete Task Interface
-// ============================================
-
+export type ExerciseType = 'Reading' | 'Writing' | 'Listening' | 'Speaking';
+export type TaskType = 'Matching' | 'Filling Blanks' | 'MCQ' | 'QA' | 'Writing' | 'Speaking';
 
 export interface BaseTask {
   id: string; // Local UUID
@@ -97,16 +95,16 @@ export interface User {
   isActive: boolean; // Added for Active/Inactive
 }
 export interface Module {
-    module_id: number; // Changed from 'id'
-    type: string;
-    description: string;
-    isActive?: boolean;
+  module_id: number; // Changed from 'id'
+  type: string;
+  description: string;
+  isActive?: boolean;
 }
 // Also update Exercise:
 export interface Exercise {
-    id: string; // Exercise ID can remain string
-    moduleId: number; // Ensure this is number and matches Module.module_id
-    // ... other fields
+  id: string; // Exercise ID can remain string
+  moduleId: number; // Ensure this is number and matches Module.module_id
+  // ... other fields
 }
 
 // ===================================
@@ -128,7 +126,7 @@ export interface AppUser {
   referralCode: string;
   referredBy?: string;
   discountAmount: number | null;
-  createdBy: string; 
+  createdBy: string;
   createdAt: string;
   editedBy?: string;
   editedAt?: string;
@@ -136,14 +134,5 @@ export interface AppUser {
   deletedAt?: string;
 }
 
-// ... (Exercise types remain unchanged) ...
-export type ExerciseType = 'Reading' | 'Writing' | 'Listening' | 'Speaking';
-export type TaskType = 'Matching' | 'Filling Blanks' | 'MCQ' | 'QA' | 'Writing' | 'Speaking';
-export interface BaseTask { /* ... */ }
-export interface MatchingTask extends BaseTask { /* ... */ }
-export interface FillingBlanksTask extends BaseTask { /* ... */ }
-export interface MCQTask extends BaseTask { /* ... */ }
-export interface QATask extends BaseTask { /* ... */ }
-export interface WritingTask extends BaseTask { /* ... */ }
-export type Task = MatchingTask | FillingBlanksTask | MCQTask | QATask | WritingTask
-export interface Exercise { /* ... */ }
+// Task union type - includes all task types
+export type Task = MatchingTask | FillingBlanksTask | MCQTask | QATask | WritingTask | SpeakingTask;

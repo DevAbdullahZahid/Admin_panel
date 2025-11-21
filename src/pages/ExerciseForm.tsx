@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { apiFetch } from '../utils/apiService'; 
-import { Exercise, Task, ExerciseType, PortalUserRole } from '../types'; 
+import { apiFetch } from '../utils/apiService';
+import { Exercise, Task, ExerciseType, PortalUserRole } from '../types';
 import AddTaskModal from '../components/AddTaskModal';
 import { PlusIcon, SaveIcon, TrashIcon } from '../components/icons';
 
@@ -68,9 +68,9 @@ const transformTaskForAPI = (task: Task, exerciseId: number): any => {
 
     // --- MCQ ---
     if (resolvedType === 'mcq') {
-        base.mcqs = (task.questions || []).map((q: any) => ({
+        base.mcqs = ((task as any).questions || []).map((q: any) => ({
             question_text: q.questionText || q.question || '',
-            allow_multiple: !!(q.allowMultipleSelections ?? task.allowMultipleSelections),
+            allow_multiple: !!((q.allowMultipleSelections ?? (task as any).allowMultipleSelections)),
             options: (q.options || []).map((o: any) => ({
                 option_text: typeof o === 'object' ? o.value : String(o ?? ''),
                 is_true: typeof o === 'object' ? !!o.isCorrect : false,
@@ -78,16 +78,16 @@ const transformTaskForAPI = (task: Task, exerciseId: number): any => {
         }));
     }
 
-    // --- Filling Blanks --- ✅ FIXED
+    // --- Filling Blanks ---
     if (resolvedType === 'filling_blanks') {
-        if (task.maxWordsPerBlank) {
-            base.max_words = Number(task.maxWordsPerBlank);
+        if ((task as any).maxWordsPerBlank) {
+            base.max_words = Number((task as any).maxWordsPerBlank);
         }
-        
-        base.filling_blanks = (task.blanks || []).map((b: any, index: number) => {
+
+        base.filling_blanks = ((task as any).blanks || []).map((b: any, index: number) => {
             // Handle both string and array formats
             let answersArray: string[] = [];
-            
+
             if (Array.isArray(b.correctAnswers) && b.correctAnswers.length > 0) {
                 answersArray = b.correctAnswers;
             } else if (b.correctAnswer) {
@@ -97,7 +97,7 @@ const transformTaskForAPI = (task: Task, exerciseId: number): any => {
                     .map((ans: string) => ans.trim())
                     .filter(Boolean);
             }
-            
+
             return {
                 question_text: b.questionText || b.textBefore || '',
                 correct_answer: answersArray.join(', '), // API expects comma-separated string
@@ -108,43 +108,50 @@ const transformTaskForAPI = (task: Task, exerciseId: number): any => {
 
     // --- Matching ---
     if (resolvedType === 'matching') {
-        base.group1 = (task.group1 || []).map((g: any) => 
+        base.group1 = ((task as any).group1 || []).map((g: any) =>
             typeof g === 'object' ? g.value : g
         );
-        base.group2 = (task.group2 || []).map((g: any) => 
+        base.group2 = ((task as any).group2 || []).map((g: any) =>
             typeof g === 'object' ? g.value : g
         );
-        if (task.answers) {
-            base.answers = task.answers;
+        // API requires answers array with same length as group1
+        // If not provided or wrong length, create array of zeros
+        const group1Length = base.group1.length;
+        if (Array.isArray((task as any).answers) && (task as any).answers.length === group1Length) {
+            // Convert all answers to strings as required by API
+            base.answers = (task as any).answers.map(String);
+        } else {
+            // Generate default answers (all "0" strings) matching group1 length
+            base.answers = Array(group1Length).fill("0");
         }
     }
 
     // --- QA ---
     if (resolvedType === 'qa') {
-        base.question_prompts = (task.questions || []).map((q: any) => 
+        base.question_prompts = ((task as any).questions || []).map((q: any) =>
             q.value || q.questionText || ''
         );
-        if (task.maxWordsPerAnswer) {
-            base.max_words = Number(task.maxWordsPerAnswer);
+        if ((task as any).maxWordsPerAnswer) {
+            base.max_words = Number((task as any).maxWordsPerAnswer);
         }
-        if (task.minimumWordCount) {
-            base.min_words = Number(task.minimumWordCount);
+        if ((task as any).minimumWordCount) {
+            base.min_words = Number((task as any).minimumWordCount);
         }
-        if (task.answers) {
-            base.answers = task.answers;
+        if ((task as any).answers) {
+            base.answers = (task as any).answers;
         }
     }
 
     // --- Writing ---
     if (resolvedType === 'writing') {
-        if (task.minimumWordCount) {
-            base.min_words = Number(task.minimumWordCount);
+        if ((task as any).minimumWordCount) {
+            base.min_words = Number((task as any).minimumWordCount);
         }
-        if (task.maxWords) {
-            base.max_words = Number(task.maxWords);
+        if ((task as any).maxWords) {
+            base.max_words = Number((task as any).maxWords);
         }
-        if (task.questions) {
-            base.question_prompts = task.questions.map((q: any) => 
+        if ((task as any).questions) {
+            base.question_prompts = (task as any).questions.map((q: any) =>
                 q.value || q.questionText || ''
             );
         }
@@ -152,8 +159,8 @@ const transformTaskForAPI = (task: Task, exerciseId: number): any => {
 
     // --- Speaking ---
     if (resolvedType === 'speaking') {
-        if (task.questions) {
-            base.question_prompts = task.questions.map((q: any) => 
+        if ((task as any).questions) {
+            base.question_prompts = (task as any).questions.map((q: any) =>
                 q.value || q.questionText || ''
             );
         }
@@ -174,9 +181,9 @@ type ExerciseFormInputs = {
     title: string;
     description: string;
     allowedTime: number;
-    passage?: string; 
-    imageUrl?: string; 
-    recordingUrl?: string; 
+    passage?: string;
+    imageUrl?: string;
+    recordingUrl?: string;
 };
 
 interface ExerciseFormProps {
@@ -193,7 +200,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
     const isEditing = !!exerciseToEdit;
 
     const initialTasks = exerciseToEdit?.tasks ? exerciseToEdit.tasks : [];
-    
+
     const [currentTasks, setCurrentTasks] = useState<Task[]>(initialTasks);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -286,37 +293,127 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
         return baseTask as Task;
     };
 
-    // --- Core API Upload Helpers (Assumed correct) ---
+    // --- File Upload Helpers ---
+
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // Reduced to 2MB to match likely server limits
+
+    const formatFileSize = (bytes: number): string => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    };
+
+    const compressImage = async (file: File, maxSizeMB: number = 2): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target?.result as string;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    // Scale down if needed - more aggressive scaling
+                    const maxDimension = 1280; // Reduced from 1920
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = (height / width) * maxDimension;
+                            width = maxDimension;
+                        } else {
+                            width = (width / height) * maxDimension;
+                            height = maxDimension;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+
+                    // Compress with quality adjustment
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: 'image/jpeg',
+                                    lastModified: Date.now(),
+                                });
+                                console.log(`📦 Compressed: ${formatFileSize(file.size)} → ${formatFileSize(compressedFile.size)}`);
+                                resolve(compressedFile);
+                            } else {
+                                reject(new Error('Compression failed'));
+                            }
+                        },
+                        'image/jpeg',
+                        0.7 // Reduced quality from 0.8
+                    );
+                };
+                img.onerror = () => reject(new Error('Failed to load image'));
+            };
+            reader.onerror = () => reject(new Error('Failed to read file'));
+        });
+    };
+
+    // --- Core API Upload Helpers ---(Assumed correct) ---
     const uploadPassageApi = async (title: string, text: string): Promise<number> => {
         const res = await apiFetch('/passages', {
             method: 'POST',
             body: JSON.stringify({ title, text }),
         });
-        return Number(res?.data?.passage?.passage_id || 0); 
+        return Number(res?.data?.passage?.passage_id || 0);
     };
 
     const uploadImageApi = async (file: File): Promise<number> => {
+        // Validate and compress if needed
+        let fileToUpload = file;
+
+        if (file.size > MAX_FILE_SIZE) {
+            console.log(`⚠️ Image too large: ${formatFileSize(file.size)}. Compressing...`);
+            try {
+                fileToUpload = await compressImage(file);
+                if (fileToUpload.size > MAX_FILE_SIZE) {
+                    throw new Error(
+                        `Image is too large (${formatFileSize(file.size)}). ` +
+                        `Even after compression (${formatFileSize(fileToUpload.size)}), ` +
+                        `it exceeds the ${formatFileSize(MAX_FILE_SIZE)} limit. ` +
+                        `Please use a smaller image.`
+                    );
+                }
+            } catch (err: any) {
+                throw new Error(`Failed to compress image: ${err.message}`);
+            }
+        }
+
         const fd = new FormData();
         fd.append('title', file.name);
-        fd.append('file', file);
+        fd.append('file', fileToUpload);
         const res = await apiFetch('/images', {
             method: 'POST',
-            headers: {}, 
             body: fd,
         });
-        return Number(res?.data?.image?.image_id || 0); 
+        return Number(res?.data?.image?.image_id || 0);
     };
 
     const uploadRecordingApi = async (file: File): Promise<number> => {
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+            throw new Error(
+                `Recording is too large (${formatFileSize(file.size)}). ` +
+                `Maximum allowed size is ${formatFileSize(MAX_FILE_SIZE)}. ` +
+                `Please use a smaller file or compress it before uploading.`
+            );
+        }
+
         const fd = new FormData();
         fd.append('title', file.name);
         fd.append('file', file);
         const res = await apiFetch('/recordings', {
             method: 'POST',
-            headers: {}, 
             body: fd,
         });
-        return Number(res?.data?.recording?.recording_id || 0); 
+        return Number(res?.data?.recording?.recording_id || 0);
     };
     // --- End API Upload Helpers ---
 
@@ -336,16 +433,16 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
             }
             if (currentImageId) {
                 const imageRes = await apiFetch(`/images/${currentImageId}`);
-                setExistingImageUrl(imageRes?.data?.image?.url || null); 
+                setExistingImageUrl(imageRes?.data?.image?.url || null);
             }
             if (currentRecordingId) {
                 const recordingRes = await apiFetch(`/recordings/${currentRecordingId}`);
                 setExistingRecordingUrl(recordingRes?.data?.recording?.url || null);
             }
-            
+
             const tasksRes = await apiFetch(`/tasks?exercise_id=${exerciseId}`);
             const fetchedTasks = tasksRes?.data?.tasks || [];
-            
+
             if (Array.isArray(fetchedTasks)) {
                 const normalizedTasks = fetchedTasks.map(normalizeFetchedTask);
                 setCurrentTasks(normalizedTasks);
@@ -368,11 +465,11 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                 allowedTime: exerciseToEdit.allowed_time || 40,
             });
             setExerciseId(Number(exerciseToEdit.id));
-            
+
             const pId = exerciseToEdit.passage_id ?? null;
             const iId = exerciseToEdit.image_id ?? null;
             const rId = exerciseToEdit.recording_id ?? null;
-            
+
             setPassageId(pId);
             setImageId(iId);
             setRecordingId(rId);
@@ -384,7 +481,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
             reset({ title: '', description: '', allowedTime: 40, passage: '' });
             setCurrentTasks([]);
             setPendingTasksToUpload([]);
-            setExerciseId(Date.now()); 
+            setExerciseId(Date.now());
             setPassageId(null);
             setInitialPassageText('');
             setImageId(null);
@@ -422,7 +519,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
 
         if (taskToRemove?.apiId) {
             try {
-                await apiFetch(`/tasks/${taskToRemove.apiId}`, { method: 'DELETE' });
+                await apiFetch(`/ tasks / ${taskToRemove.apiId} `, { method: 'DELETE' });
             } catch (err) {
                 console.error('Failed to delete task:', err);
                 alert('Failed to delete task from server.');
@@ -435,11 +532,11 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
 
     const onSaveExercise: SubmitHandler<ExerciseFormInputs> = async (data) => {
         if (!data.title?.trim()) return alert('Title is required');
-        
+
         if (moduleType === 'Reading' && currentTasks.length === 0) {
             return alert('Please add at least one task for the Reading module.');
         }
-        
+
         setIsSaving(true);
         let finalPassageId = passageId;
         let finalImageId = imageId;
@@ -455,10 +552,10 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
 
             if ((moduleType === 'Reading' || moduleType === 'Writing') && shouldUploadPassage) {
                 finalPassageId = await uploadPassageApi(`${exerciseTitle} - Passage`, trimmedPassage!);
-                if (!finalPassageId) throw new Error("Failed to upload passage."); 
+                if (!finalPassageId) throw new Error("Failed to upload passage.");
                 setInitialPassageText(trimmedPassage || '');
             }
-            if (moduleType === 'Reading' && selectedImageFile) { 
+            if (moduleType === 'Reading' && selectedImageFile) {
                 finalImageId = await uploadImageApi(selectedImageFile);
                 if (!finalImageId) throw new Error("Failed to upload image.");
             }
@@ -496,11 +593,11 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                     method: 'POST',
                     body: JSON.stringify(exercisePayload),
                 });
-                
-                const officialExerciseId = 
-                    exerciseRes?.data?.exercise?.exercise_id || 
-                    exerciseRes?.exercise_id ||                  
-                    exerciseRes?.data?.exercise_id; 
+
+                const officialExerciseId =
+                    exerciseRes?.data?.exercise?.exercise_id ||
+                    exerciseRes?.exercise_id ||
+                    exerciseRes?.data?.exercise_id;
 
                 if (!officialExerciseId) {
                     throw new Error("Backend did not return official exercise ID.");
@@ -510,37 +607,46 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
 
             if (pendingTasksToUpload.length > 0) {
                 console.log('📋 Uploading tasks:', pendingTasksToUpload.length);
-                
+
                 for (const task of pendingTasksToUpload) {
                     try {
                         // Transform task
                         const taskPayload = transformTaskForAPI(task, finalExerciseId!);
-                        
+
                         // Determine if update or create based on apiId
                         const isUpdate = !!task.apiId;
                         const method = isUpdate ? 'PUT' : 'POST';
                         const url = isUpdate ? `/tasks/${task.apiId}` : '/tasks';
-                        
-                        console.log(`📡 ${method} ${url}`, taskPayload);
-                        
+
+                        console.log(`📡 ${method} ${url} `, taskPayload);
+
                         const result = await apiFetch(url, {
                             method: method,
                             body: JSON.stringify(taskPayload),
                         });
-                        
-                        console.log(`✅ ${method} Success:`, result);
-                        
+
+                        // Check if the response indicates an error
+                        if (result?.code >= 400 || result?.status === 'error') {
+                            const errorMsg = result?.message || result?.error || 'Task creation failed';
+                            console.error(`❌ API Error Response:`, result);
+                            throw new Error(errorMsg);
+                        }
+
+                        console.log(`✅ ${method} Success: `, result);
+
                     } catch (err: any) {
-                        console.error(`❌ Failed to ${task.apiId ? 'update' : 'create'} task "${task.title}":`, err);
-                        throw new Error(`Task "${task.title}" failed: ${err.message}`);
+                        const errorMessage = err.message || 'Unknown error';
+                        console.error(`❌ Failed to ${task.apiId ? 'update' : 'create'} task "${task.title}":`, errorMessage);
+                        console.error('Full error object:', err);
+                        throw new Error(`Task "${task.title}" failed: ${errorMessage}`);
                     }
                 }
-                
+
                 setPendingTasksToUpload([]);
                 console.log('✅ All tasks uploaded successfully');
             }
-            
-            alert(`Exercise ${isEditing ? 'updated' : 'created'} successfully! ID: ${finalExerciseId}`);
+
+            alert(`Exercise ${isEditing ? 'updated' : 'created'} successfully! ID: ${finalExerciseId} `);
             onClose();
 
         } catch (err: any) {
@@ -553,8 +659,8 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
 
     const commonInputClasses = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm";
     const labelClasses = "block text-sm font-medium text-gray-700";
-    const assetStatusClasses = (id: number | null) => 
-        `text-sm font-medium ${id ? 'text-green-600' : 'text-gray-500'}`;
+    const assetStatusClasses = (id: number | null) =>
+        `text - sm font - medium ${id ? 'text-green-600' : 'text-gray-500'} `;
 
     if (isEditing && isFetching) {
         return <div className="text-center py-20 text-xl text-gray-600">Loading exercise details...</div>;
@@ -564,7 +670,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
         <>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">
-                    {isEditing ? `Edit ${moduleType}` : `Create New ${moduleType}`} Exercise
+                    {isEditing ? `Edit ${moduleType} ` : `Create New ${moduleType} `} Exercise
                 </h1>
                 <button onClick={onClose} className="text-blue-600 hover:underline">Back</button>
             </div>
@@ -572,7 +678,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
             <form onSubmit={handleSubmit(onSaveExercise)} className="bg-white p-6 rounded-lg shadow-md space-y-6">
                 <div className="flex justify-between items-center border-b pb-4">
                     <h2 className="text-xl font-semibold">Exercise Details</h2>
-                    <button type="submit" disabled={isSaving} className={`px-5 py-2 rounded flex items-center gap-2 ${isSaving ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                    <button type="submit" disabled={isSaving} className={`px - 5 py - 2 rounded flex items - center gap - 2 ${isSaving ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700 text-white'} `}>
                         <SaveIcon className="w-4 h-4" />
                         {isSaving ? 'Saving...' : (isEditing ? 'Update Exercise' : 'Save Exercise')}
                     </button>
@@ -581,7 +687,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className={labelClasses}>Type</label>
-                        <input value={moduleType} readOnly className={`${commonInputClasses} bg-gray-100`} />
+                        <input value={moduleType} readOnly className={`${commonInputClasses} bg - gray - 100`} />
                     </div>
                     <div>
                         <label className={labelClasses}>Title *</label>
@@ -601,7 +707,7 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                         <div className="md:col-span-2">
                             <label className={labelClasses}>Passage / Prompt</label>
                             <textarea {...register('passage')} rows={8} className={commonInputClasses} placeholder="Enter the text passage or writing prompt here." />
-                            <p className={assetStatusClasses(passageId)}>Status: {passageId ? `Passage content loaded (ID: ${passageId})` : 'New passage will be uploaded on save.'}</p>
+                            <p className={assetStatusClasses(passageId)}>Status: {passageId ? `Passage content loaded(ID: ${passageId})` : 'New passage will be uploaded on save.'}</p>
                         </div>
                     )}
 
@@ -616,17 +722,17 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                                 </div>
                             )}
                             <div className="flex gap-2 items-center">
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    onChange={(e) => setSelectedImageFile(e.target.files?.[0] || null)} 
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setSelectedImageFile(e.target.files?.[0] || null)}
                                     className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                 />
                             </div>
-                            <p className={assetStatusClasses(imageId)}>Status: 
-                                {selectedImageFile 
+                            <p className={assetStatusClasses(imageId)}>Status:
+                                {selectedImageFile
                                     ? `New file selected: ${selectedImageFile.name}. Will upload on save.`
-                                    : (imageId ? `No new file. Existing ID: ${imageId}` : 'No image selected.')}
+                                    : (imageId ? `No new file.Existing ID: ${imageId} ` : 'No image selected.')}
                             </p>
                         </div>
                     )}
@@ -642,58 +748,58 @@ const ExerciseForm: React.FC<ExerciseFormProps> = ({ exerciseToEdit, moduleType,
                                 </div>
                             )}
                             <div className="flex gap-2 items-center">
-                                <input 
-                                    type="file" 
-                                    accept="audio/*,video/*" 
-                                    onChange={(e) => setSelectedRecordingFile(e.target.files?.[0] || null)} 
+                                <input
+                                    type="file"
+                                    accept="audio/*,video/*"
+                                    onChange={(e) => setSelectedRecordingFile(e.target.files?.[0] || null)}
                                     className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                 />
                             </div>
-                            <p className={assetStatusClasses(recordingId)}>Status: 
-                                {selectedRecordingFile 
+                            <p className={assetStatusClasses(recordingId)}>Status:
+                                {selectedRecordingFile
                                     ? `New file selected: ${selectedRecordingFile.name}. Will upload on save.`
-                                    : (recordingId ? `No new file. Existing ID: ${recordingId}` : 'No recording selected.')}
+                                    : (recordingId ? `No new file.Existing ID: ${recordingId} ` : 'No recording selected.')}
                             </p>
                         </div>
                     )}
                 </div>
             </form>
-            
-            {/* Task list rendering */}
-                <div className="bg-white p-6 rounded-lg shadow-md mt-8">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold">Tasks ({currentTasks.length})</h2>
-                        <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2">
-                            <PlusIcon className="w-5 h-5" /> Add Task
-                        </button>
-                    </div>
 
-                    {currentTasks.length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No tasks yet</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {currentTasks.map((task, i) => (
-                                <div key={task.id} className="flex justify-between items-center p-4 bg-gray-50 rounded border">
-                                    <div>
-                                        <strong>{i + 1}. {task.title}</strong>
-                                        <span className="ml-3 text-sm text-gray-600">({task.taskType})</span>
-                                        {pendingTasksToUpload.some(t => t.id === task.id) && (
-                                            <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full">Pending Save</span>
-                                        )}
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="text-indigo-600 hover:text-indigo-800">Edit</button>
-                                        <button onClick={() => handleRemoveTask(task.id)} className="text-red-600 hover:text-red-800 p-1 rounded">
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+            {/* Task list rendering */}
+            <div className="bg-white p-6 rounded-lg shadow-md mt-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold">Tasks ({currentTasks.length})</h2>
+                    <button onClick={() => { setEditingTask(null); setIsModalOpen(true); }} className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2">
+                        <PlusIcon className="w-5 h-5" /> Add Task
+                    </button>
                 </div>
-            
-            
+
+                {currentTasks.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No tasks yet</p>
+                ) : (
+                    <div className="space-y-3">
+                        {currentTasks.map((task, i) => (
+                            <div key={task.id} className="flex justify-between items-center p-4 bg-gray-50 rounded border">
+                                <div>
+                                    <strong>{i + 1}. {task.title}</strong>
+                                    <span className="ml-3 text-sm text-gray-600">({task.taskType})</span>
+                                    {pendingTasksToUpload.some(t => t.id === task.id) && (
+                                        <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full">Pending Save</span>
+                                    )}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => { setEditingTask(task); setIsModalOpen(true); }} className="text-indigo-600 hover:text-indigo-800">Edit</button>
+                                    <button onClick={() => handleRemoveTask(task.id)} className="text-red-600 hover:text-red-800 p-1 rounded">
+                                        <TrashIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+
             <AddTaskModal
                 isOpen={isModalOpen}
                 onClose={() => { setIsModalOpen(false); setEditingTask(null); }}
