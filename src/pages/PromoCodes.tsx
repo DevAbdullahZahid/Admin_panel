@@ -3,28 +3,45 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../utils/apiService';
 import { useAuth } from '../hooks/useAuth';
 
+// Request body interface
 interface PromoData {
-  id?: number;
   user_id: number;
-  promo_type: 'flat' | 'percentage' | 'string';
+  promo_type: string; // API accepts: 'referral', 'percentage', 'flat', etc.
   discount: number;
   valid_for_hours: number;
   start_at_time: string;
   promo_code: string;
   max_uses: number;
-  current_uses?: number; // Added for display
+}
+
+// Response interface - API returns different field names
+interface PromoResponse {
+  id: number;
+  user_id: number;
+  promo_code: string;
+  discount: number;
+  type: string; // API returns 'type' not 'promo_type'
+  start_at_time: string;
+  valid_till_time: string | null;
+  valid_for_hours: number | null;
+  max_uses: number | null;
+  is_active: boolean;
+  created_by: number;
+  updated_by: number;
+  created_at: string;
+  updated_at: string;
 }
 
 const PromoCodes: React.FC = () => {
   const { currentUser } = useAuth(); // Get current user
   const [promoData, setPromoData] = useState<PromoData>({
     user_id: 0, // Will be updated with currentUser.id
-    promo_type: 'flat',
+    promo_type: 'referral',
     discount: 0,
     valid_for_hours: 24,
     start_at_time: new Date().toISOString(),
     promo_code: '',
-    max_uses: 0,
+    max_uses: 1,
   });
 
   // Update user_id when currentUser is loaded
@@ -34,20 +51,16 @@ const PromoCodes: React.FC = () => {
     }
   }, [currentUser]);
 
-  const [promos, setPromos] = useState<PromoData[]>([]);
+  const [promos, setPromos] = useState<PromoResponse[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Fetch all promos from API
   const fetchPromos = async () => {
     try {
       setLoading(true);
-      // Fix: Add trailing slash to prevent 307 Redirect -> CORS Error
       const response = await apiFetch('/promocode/', { method: 'GET' });
-      // API returns { data: { promocodes: [...] } } or similar, need to check response structure
-      // Based on other endpoints, it might be response.data or response directly if apiFetch handles it.
-      // Let's assume apiFetch returns the parsed JSON.
-      // If the API follows the pattern: { code: 200, message: "...", data: { promocodes: [] } }
-      const list = response.data?.promocodes || response.data || [];
+      // API returns: { code: 200, status: "success", message: "...", data: { promo_codes: [...] } }
+      const list = response.data?.promo_codes || [];
       setPromos(Array.isArray(list) ? list : []);
       setLoading(false);
     } catch (err) {
@@ -69,7 +82,6 @@ const PromoCodes: React.FC = () => {
     try {
       const payload = { ...promoData };
 
-      // Fix: Add trailing slash
       await apiFetch('/promocode/', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -77,13 +89,13 @@ const PromoCodes: React.FC = () => {
 
       alert('Promo created successfully!');
       setPromoData({
-        user_id: Number(currentUser?.id) || 0,
-        promo_type: 'flat',
+        user_id: Number(currentUser?.id) || 1,
+        promo_type: 'referral',
         discount: 0,
         valid_for_hours: 24,
         start_at_time: new Date().toISOString(),
         promo_code: '',
-        max_uses: 0,
+        max_uses: 1,
       });
 
       fetchPromos(); // Refresh the list
@@ -121,9 +133,9 @@ const PromoCodes: React.FC = () => {
         <div>
           <label className="block text-sm font-semibold text-gray-600">Promo Type</label>
           <select name="promo_type" value={promoData.promo_type} onChange={handleChange} className="w-full mt-2 p-2 border rounded-lg">
-            <option value="flat">Flat Amount</option>
+            <option value="referral">Referral</option>
             <option value="percentage">Percentage</option>
-            <option value="string">String</option>
+            <option value="flat">Flat Amount</option>
           </select>
         </div>
 
@@ -169,10 +181,10 @@ const PromoCodes: React.FC = () => {
             {promos.map((promo) => (
               <tr key={promo.id}>
                 <td className="py-3 px-4">{promo.promo_code}</td>
-                <td className="py-3 px-4 capitalize">{promo.promo_type}</td>
-                <td className="py-3 px-4">{promo.discount}{promo.promo_type === 'percentage' ? '%' : ''}</td>
-                <td className="py-3 px-4">{promo.valid_for_hours}</td>
-                <td className="py-3 px-4">{promo.max_uses}</td>
+                <td className="py-3 px-4 capitalize">{promo.type}</td>
+                <td className="py-3 px-4">{promo.discount}{promo.type === 'percentage' ? '%' : ''}</td>
+                <td className="py-3 px-4">{promo.valid_for_hours ?? 'N/A'}</td>
+                <td className="py-3 px-4">{promo.max_uses ?? '∞'}</td>
                 <td className="py-3 px-4 text-center">
                   <button onClick={() => deletePromo(promo.id)} className="text-red-600 hover:text-red-800">Delete</button>
                 </td>

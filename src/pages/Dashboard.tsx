@@ -50,63 +50,63 @@ const Dashboard: React.FC = () => {
 
   // --- (MODIFIED) useEffect to fetch data ---
   useEffect(() => {
-  
+
     // Corrected fetchUsers function
     const fetchUsers = async () => {
       try {
         const data = await apiFetch('/users', { method: 'GET' });
-    
+
         console.log("[Dashboard] Full Users API Response:");
-    
+
         // Extract correctly based on real API structure
         const usersArray = data?.data?.users;
-    
+
         if (Array.isArray(usersArray)) {
           setTotalUsers(usersArray.length);
         } else {
           console.warn("[Dashboard] User API response is not an array");
           setTotalUsers(0);
         }
-    
+
       } catch (error) {
         console.error("[Dashboard] Error fetching users from API:", error);
         setTotalUsers(0);
       }
     };
-    
-  
+
+
     // FIX: Add missing fetchExercises
     // FIX: Fetch exercises from API instead of localStorage
-const fetchExercises = async () => {
-  try {
-    const data = await apiFetch('/exercises', { method: 'GET' });
+    const fetchExercises = async () => {
+      try {
+        const data = await apiFetch('/exercises', { method: 'GET' });
 
-    console.log("[Dashboard] All Exercises API Response:");
+        console.log("[Dashboard] All Exercises API Response:");
 
-    // Extract exercises array
-    const exercisesArray = data?.data?.exercises;
+        // Extract exercises array
+        const exercisesArray = data?.data?.exercises;
 
-    if (Array.isArray(exercisesArray)) {
-      setTotalExercises(exercisesArray.length);
-    } else {
-      console.warn("[Dashboard] Exercise API response is not an array");
-      setTotalExercises(0);
-    }
+        if (Array.isArray(exercisesArray)) {
+          setTotalExercises(exercisesArray.length);
+        } else {
+          console.warn("[Dashboard] Exercise API response is not an array");
+          setTotalExercises(0);
+        }
 
-  } catch (error) {
-    console.error("[Dashboard] Error fetching exercises from API:", error);
-    setTotalExercises(0);
-  }
-};
+      } catch (error) {
+        console.error("[Dashboard] Error fetching exercises from API:", error);
+        setTotalExercises(0);
+      }
+    };
 
-  
+
     // Call all functions
     fetchUsers();
     fetchExercises();
     setActivities(getActivityLog());
-  
-  }, []); 
-  
+
+  }, []);
+
 
   // --- Quick Stats (Now reflects dynamic data where available) ---
   const activeNowValue = currentUser ? '1 User' : '0 Users';
@@ -138,13 +138,13 @@ const fetchExercises = async () => {
           changeType="neutral"
           icon={DollarSignIcon}
         />
-         <StatCard
+        <StatCard
           title="Total Exercises"
           value={totalExercises.toString()} // (Still from localStorage)
           change="Live Count"
           changeType="neutral"
           icon={BookOpenIcon}
-         />
+        />
         <StatCard
           title="Monthly Revenue"
           value="$0" // Placeholder
@@ -164,7 +164,7 @@ const fetchExercises = async () => {
             {activities.length > 0 ? activities.map((activity, index) => (
               <li key={activity.timestamp + index} className="flex items-start">
                 <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full mr-4">
-                    <ActivityIcon className="w-5 h-5 text-gray-500"/>
+                  <ActivityIcon className="w-5 h-5 text-gray-500" />
                 </div>
                 <div>
                   {/* Display the logged message */}

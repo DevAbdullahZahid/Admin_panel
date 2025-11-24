@@ -43,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // First check if we have a token - if not, skip the API call
       const token = localStorage.getItem('authToken');
+      console.log("[Auth] Token found:", token);
       if (!token) {
         setCurrentUser(null);
         setIsLoading(false);

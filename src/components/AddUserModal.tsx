@@ -12,6 +12,7 @@ interface UserFormInputs {
   referralCode?: string;
   discountAmount?: number;
   isActive?: boolean;
+  otp: string;
 }
 
 interface AddUserModalProps {
@@ -59,6 +60,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
       setValue('referralCode', editingUser.referralCode || '');
       setValue('discountAmount', editingUser.discountAmount || undefined);
       setValue('isActive', editingUser.isActive ?? true);
+      setValue('otp', editingUser.otp || '');
     } else {
       reset({
         email: '',
@@ -69,6 +71,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
         referralCode: '',
         discountAmount: undefined,
         isActive: true,
+        otp: '',
       });
     }
   }, [isEditing, editingUser, setValue, reset]);
@@ -87,6 +90,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
         last_name: data.lastName,
         role: data.role.toLowerCase(),
         plan: 'free',
+        otp: data.otp,
       };
 
       // Only send password for new users
@@ -148,7 +152,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
-              {...register('email', { 
+              {...register('email', {
                 required: 'Email is required',
                 pattern: {
                   value: /^\S+@\S+$/i,
@@ -167,7 +171,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700">Password</label>
               <input
-                {...register('password', { 
+                {...register('password', {
                   required: 'Password is required',
                   minLength: { value: 6, message: 'Password must be at least 6 characters' }
                 })}
@@ -231,7 +235,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
           <div>
             <label className="block text-sm font-medium text-gray-700">Discount % (optional)</label>
             <input
-              {...register('discountAmount', { 
+              {...register('discountAmount', {
                 valueAsNumber: true,
                 min: { value: 0, message: 'Cannot be negative' },
                 max: { value: 100, message: 'Cannot exceed 100%' }
@@ -256,6 +260,20 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
               <label className="ml-2 text-sm text-gray-700">User is active</label>
             </div>
           )}
+
+          {/* OTP */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">OTP</label>
+            <input
+              {...register('otp', {
+                required: 'OTP is required',
+                minLength: { value: 4, message: 'OTP must be at least 4 digits' }
+              })}
+              type="text"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+            {errors.otp && <p className="text-red-500 text-xs mt-1">{errors.otp.message}</p>}
+          </div>
 
           {/* ---------- BUTTONS ---------- */}
           <div className="flex justify-end space-x-3 pt-4">
