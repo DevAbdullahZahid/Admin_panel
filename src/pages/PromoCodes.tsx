@@ -162,38 +162,10 @@ const PromoCodes: React.FC = () => {
         <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">Create Promo</button>
       </form>
 
-      <h2 className="text-2xl font-bold mb-4">Promo Modules</h2>
-      {promos.length === 0 ? (
-        <p className="text-gray-500">No promos yet.</p>
-      ) : (
-        <table className="min-w-full bg-white shadow-md rounded-lg">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="py-3 px-4 text-left">Code</th>
-              <th className="py-3 px-4 text-left">Type</th>
-              <th className="py-3 px-4 text-left">Discount</th>
-              <th className="py-3 px-4 text-left">Valid Hours</th>
-              <th className="py-3 px-4 text-left">Max Uses</th>
-              <th className="py-3 px-4 text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {promos.map((promo) => (
-              <tr key={promo.id}>
-                <td className="py-3 px-4">{promo.promo_code}</td>
-                <td className="py-3 px-4 capitalize">{promo.type}</td>
-                <td className="py-3 px-4">{promo.discount}{promo.type === 'percentage' ? '%' : ''}</td>
-                <td className="py-3 px-4">{promo.valid_for_hours ?? 'N/A'}</td>
-                <td className="py-3 px-4">{promo.max_uses ?? '∞'}</td>
-                <td className="py-3 px-4 text-center">
-                  <button onClick={() => deletePromo(promo.id)} className="text-red-600 hover:text-red-800">Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+
+
+
+    </div >
   );
 };
 
