@@ -60,7 +60,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
       setValue('referralCode', editingUser.referralCode || '');
       setValue('discountAmount', editingUser.discountAmount || undefined);
       setValue('isActive', editingUser.isActive ?? true);
-      setValue('otp', editingUser.otp || '');
+      // Don't set OTP when editing
     } else {
       reset({
         email: '',
@@ -261,19 +261,21 @@ const AddUserModal: React.FC<AddUserModalProps> = ({
             </div>
           )}
 
-          {/* OTP */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">OTP</label>
-            <input
-              {...register('otp', {
-                required: 'OTP is required',
-                minLength: { value: 4, message: 'OTP must be at least 4 digits' }
-              })}
-              type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            />
-            {errors.otp && <p className="text-red-500 text-xs mt-1">{errors.otp.message}</p>}
-          </div>
+          {/* OTP (only for new users) */}
+          {!isEditing && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">OTP</label>
+              <input
+                {...register('otp', {
+                  required: 'OTP is required',
+                  minLength: { value: 4, message: 'OTP must be at least 4 digits' }
+                })}
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+              {errors.otp && <p className="text-red-500 text-xs mt-1">{errors.otp.message}</p>}
+            </div>
+          )}
 
           {/* ---------- BUTTONS ---------- */}
           <div className="flex justify-end space-x-3 pt-4">

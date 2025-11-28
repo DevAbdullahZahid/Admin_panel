@@ -10,6 +10,9 @@ import LoginPage from './pages/LoginPage';
 import PromoCodes from './pages/PromoCodes';
 import PromoModules from './pages/PromoModules';
 import Inquiries from './pages/Inquiries';
+import EmailConfigs from './pages/EmailConfigs';
+import EmailTemplates from './pages/EmailTemplates';
+import EmailLogs from './pages/EmailLogs';
 import { useAuth } from './hooks/useAuth';
 import { User } from './types';
 import ContactFormSubmissions from './pages/ContactFormSubmissions';
@@ -21,7 +24,10 @@ type Page =
   | 'Promo Codes'
   | 'Contact Form Submissions'
   | 'Inquiries'
-  | 'Promo Modules';
+  | 'Promo Modules'
+  | 'Email Configs'
+  | 'Email Templates'
+  | 'Email Logs';
 
 const LoggedInApp: React.FC<{ currentUser: User }> = ({ currentUser }) => {
   const [activePage, setActivePage] = useState<Page>('Dashboard');
@@ -45,6 +51,12 @@ const LoggedInApp: React.FC<{ currentUser: User }> = ({ currentUser }) => {
         return <Inquiries />;
       case 'Contact Form Submissions':
         return <ContactFormSubmissions />;
+      case 'Email Configs':
+        return <EmailConfigs />;
+      case 'Email Templates':
+        return <EmailTemplates />;
+      case 'Email Logs':
+        return <EmailLogs />;
       default:
         return <Dashboard />;
     }

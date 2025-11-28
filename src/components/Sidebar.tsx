@@ -7,6 +7,9 @@ import {
   MessageSquare,
   Gift,
   Settings,
+  Mail,
+  FileText,
+  Archive,
 } from 'lucide-react';
 import { PortalUserRole } from '../types';
 
@@ -18,7 +21,10 @@ type Page =
   | 'Promo Codes'
   | 'Promo Modules'
   | 'Contact Form Submissions'
-  | 'Inquiries';
+  | 'Inquiries'
+  | 'Email Configs'
+  | 'Email Templates'
+  | 'Email Logs';
 
 interface NavItem {
   name: string;
@@ -42,6 +48,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, currentUse
     { name: 'Inquiries', icon: MessageSquare, page: 'Inquiries', roles: ['SuperAdmin', 'Admin', 'Editor'] },
     { name: 'Promo Codes', icon: Gift, page: 'Promo Codes', roles: ['SuperAdmin', 'Admin'] },
     { name: 'Promo Modules', icon: Gift, page: 'Promo Modules', roles: ['SuperAdmin', 'Admin'] },
+    { name: 'Email Configs', icon: Mail, page: 'Email Configs', roles: ['SuperAdmin', 'Admin'] },
+    { name: 'Email Templates', icon: FileText, page: 'Email Templates', roles: ['SuperAdmin', 'Admin'] },
+    { name: 'Email Logs', icon: Archive, page: 'Email Logs', roles: ['SuperAdmin', 'Admin', 'Editor'] },
   ];
 
   const visibleNavItems = navItems.filter(

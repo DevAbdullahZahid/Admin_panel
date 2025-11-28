@@ -1,0 +1,244 @@
+// src/api/emailApi.ts
+import { apiFetch } from '../utils/apiService';
+
+// ===================================
+// TYPESCRIPT INTERFACES
+// ===================================
+
+export interface EmailConfig {
+    config_id: string;
+    smtp_host: string;
+    smtp_port: number;
+    smtp_user: string;
+    smtp_password?: string;
+    from_email: string;
+    from_name: string;
+    use_tls: boolean;
+    use_ssl: boolean;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface CreateEmailConfigPayload {
+    smtp_host: string;
+    smtp_port: number;
+    smtp_user: string;
+    smtp_password: string;
+    from_email: string;
+    from_name: string;
+    use_tls?: boolean;
+    use_ssl?: boolean;
+    is_active?: boolean;
+}
+
+export interface UpdateEmailConfigPayload {
+    smtp_host?: string;
+    smtp_port?: number;
+    smtp_user?: string;
+    smtp_password?: string;
+    from_email?: string;
+    from_name?: string;
+    use_tls?: boolean;
+    use_ssl?: boolean;
+    is_active?: boolean;
+}
+
+export interface EmailTemplate {
+    template_id: string;
+    config_id: string;
+    name: string;
+    subject: string;
+    email_type: string;
+    html_template: string;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface CreateEmailTemplatePayload {
+    config_id: string;
+    name: string;
+    subject: string;
+    email_type: string;
+    html_template: string;
+    is_active?: boolean;
+}
+
+export interface UpdateEmailTemplatePayload {
+    config_id?: string;
+    name?: string;
+    subject?: string;
+    email_type?: string;
+    html_template?: string;
+    is_active?: boolean;
+}
+
+export interface EmailVariable {
+    variable_name: string;
+    description: string;
+    example_value?: string;
+}
+
+export interface EmailLog {
+    log_id: string;
+    recipient_email: string;
+    subject: string;
+    email_type: string;
+    status: 'sent' | 'failed';
+    error_message?: string;
+    sent_at?: string;
+    created_at?: string;
+}
+
+// ===================================
+// EMAIL CONFIG API FUNCTIONS
+// ===================================
+
+/**
+ * Get all email configurations
+ */
+export const getConfigs = async (): Promise<EmailConfig[]> => {
+    const response = await apiFetch('/email/configs', { method: 'GET' });
+    // Handle different response formats
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response?.configs)) return response.configs;
+    return [];
+};
+
+/**
+ * Get a single email configuration by ID
+ */
+export const getConfigById = async (configId: string): Promise<EmailConfig> => {
+    const response = await apiFetch(`/email/configs/${configId}`, { method: 'GET' });
+    return response?.data || response;
+};
+
+/**
+ * Create a new email configuration
+ */
+export const createConfig = async (payload: CreateEmailConfigPayload): Promise<EmailConfig> => {
+    const response = await apiFetch('/email/configs', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    return response?.data || response;
+};
+
+/**
+ * Update an existing email configuration
+ */
+export const updateConfig = async (
+    configId: string,
+    payload: UpdateEmailConfigPayload
+): Promise<EmailConfig> => {
+    const response = await apiFetch(`/email/configs/${configId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+    return response?.data || response;
+};
+
+/**
+ * Delete an email configuration
+ */
+export const deleteConfig = async (configId: string): Promise<void> => {
+    await apiFetch(`/email/configs/${configId}`, { method: 'DELETE' });
+};
+
+// ===================================
+// EMAIL TEMPLATE API FUNCTIONS
+// ===================================
+
+/**
+ * Get all email templates
+ */
+export const getTemplates = async (): Promise<EmailTemplate[]> => {
+    const response = await apiFetch('/email/templates', { method: 'GET' });
+    // Handle different response formats
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response?.templates)) return response.templates;
+    return [];
+};
+
+/**
+ * Get a single email template by ID
+ */
+export const getTemplateById = async (templateId: string): Promise<EmailTemplate> => {
+    const response = await apiFetch(`/email/templates/${templateId}`, { method: 'GET' });
+    return response?.data || response;
+};
+
+/**
+ * Create a new email template
+ */
+export const createTemplate = async (payload: CreateEmailTemplatePayload): Promise<EmailTemplate> => {
+    const response = await apiFetch('/email/templates', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    return response?.data || response;
+};
+
+/**
+ * Update an existing email template
+ */
+export const updateTemplate = async (
+    templateId: string,
+    payload: UpdateEmailTemplatePayload
+): Promise<EmailTemplate> => {
+    const response = await apiFetch(`/email/templates/${templateId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+    return response?.data || response;
+};
+
+/**
+ * Delete an email template
+ */
+export const deleteTemplate = async (templateId: string): Promise<void> => {
+    await apiFetch(`/email/templates/${templateId}`, { method: 'DELETE' });
+};
+
+// ===================================
+// EMAIL VARIABLES API FUNCTIONS
+// ===================================
+
+/**
+ * Get available variables for a specific email type
+ */
+export const getVariablesByType = async (emailType: string): Promise<EmailVariable[]> => {
+    const response = await apiFetch(`/email/variables/${emailType}`, { method: 'GET' });
+    // Handle different response formats
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response?.variables)) return response.variables;
+    return [];
+};
+
+// ===================================
+// EMAIL LOGS API FUNCTIONS
+// ===================================
+
+/**
+ * Get all email logs
+ */
+export const getLogs = async (): Promise<EmailLog[]> => {
+    const response = await apiFetch('/email/logs', { method: 'GET' });
+    // Handle different response formats
+    if (Array.isArray(response)) return response;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response?.logs)) return response.logs;
+    return [];
+};
+
+/**
+ * Get a single email log by ID
+ */
+export const getLogById = async (logId: string): Promise<EmailLog> => {
+    const response = await apiFetch(`/email/logs/${logId}`, { method: 'GET' });
+    return response?.data || response;
+};

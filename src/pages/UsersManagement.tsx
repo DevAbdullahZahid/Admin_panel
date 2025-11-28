@@ -84,7 +84,7 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
     setError(null);
     setSuccess(null);
     try {
-      const endpoint = userId ? `/users/${userId}` : '/users/register';
+      const endpoint = userId ? `/users/${userId}` : 'auth/signup';
       const method = userId ? 'PUT' : 'POST';
 
       console.log(`Calling ${method} ${endpoint}`, payload);
@@ -246,15 +246,14 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
 
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          user.role === 'SuperAdmin'
+                        className={`px-2 py-1 text-xs rounded-full ${user.role === 'SuperAdmin'
                             ? 'bg-purple-100 text-purple-800'
                             : user.role === 'Admin'
-                            ? 'bg-red-100 text-red-800'
-                            : user.role === 'Editor'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
+                              ? 'bg-red-100 text-red-800'
+                              : user.role === 'Editor'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-blue-100 text-blue-800'
+                          }`}
                       >
                         {user.role}
                       </span>
@@ -262,9 +261,8 @@ const UsersManagement: React.FC<UsersManagementProps> = ({
 
                     <td className="px-6 py-4">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={`px-2 py-1 text-xs rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                          }`}
                       >
                         {user.isActive ? 'Active' : 'Inactive'}
                       </span>
