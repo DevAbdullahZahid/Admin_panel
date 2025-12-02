@@ -16,15 +16,10 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
     editingConfig,
 }) => {
     const [formData, setFormData] = useState({
-        smtp_host: '',
-        smtp_port: 587,
-        smtp_user: '',
-        smtp_password: '',
+        provider: 'mailtrap',
         from_email: '',
         from_name: '',
-        use_tls: true,
-        use_ssl: false,
-        is_active: true,
+        provider_config: '',
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,27 +27,17 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
     useEffect(() => {
         if (editingConfig) {
             setFormData({
-                smtp_host: editingConfig.smtp_host,
-                smtp_port: editingConfig.smtp_port,
-                smtp_user: editingConfig.smtp_user,
-                smtp_password: '', // Don't populate password for security
+                provider: editingConfig.provider,
                 from_email: editingConfig.from_email,
                 from_name: editingConfig.from_name,
-                use_tls: editingConfig.use_tls,
-                use_ssl: editingConfig.use_ssl,
-                is_active: editingConfig.is_active,
+                provider_config: editingConfig.provider_config,
             });
         } else {
             setFormData({
-                smtp_host: '',
-                smtp_port: 587,
-                smtp_user: '',
-                smtp_password: '',
+                provider: 'mailtrap',
                 from_email: '',
                 from_name: '',
-                use_tls: true,
-                use_ssl: false,
-                is_active: true,
+                provider_config: '',
             });
         }
     }, [editingConfig, isOpen]);
@@ -62,17 +47,16 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
         setIsSubmitting(true);
 
         try {
-            const payload = editingConfig
-                ? // For updates, only send changed fields (excluding empty password)
-                Object.fromEntries(
-                    Object.entries(formData).filter(([key, value]) => {
-                        if (key === 'smtp_password' && !value) return false;
-                        return true;
-                    })
-                )
-                : formData;
+            // Validate JSON format
+            try {
+                JSON.parse(formData.provider_config);
+            } catch {
+                alert('Invalid JSON format in provider_config');
+                setIsSubmitting(false);
+                return;
+            }
 
-            const success = await onSubmit(payload as any, editingConfig?.config_id);
+            const success = await onSubmit(formData as any, editingConfig?.config_id);
             if (success) {
                 onClose();
             }
@@ -85,7 +69,7 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                     <h2 className="text-2xl font-bold text-gray-800 mb-4">
                         {editingConfig ? 'Edit Email Configuration' : 'Add Email Configuration'}
@@ -93,64 +77,20 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
 
                     <form onSubmit={handleSubmit}>
                         <div className="space-y-4">
-                            {/* SMTP Host */}
+                            {/* Provider */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    SMTP Host *
+                                    Provider *
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    value={formData.smtp_host}
-                                    onChange={(e) => setFormData({ ...formData, smtp_host: e.target.value })}
+                                    value={formData.provider}
+                                    onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="smtp.gmail.com"
+                                    placeholder="mailtrap"
                                 />
-                            </div>
-
-                            {/* SMTP Port */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    SMTP Port *
-                                </label>
-                                <input
-                                    type="number"
-                                    required
-                                    value={formData.smtp_port}
-                                    onChange={(e) => setFormData({ ...formData, smtp_port: parseInt(e.target.value) })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="587"
-                                />
-                            </div>
-
-                            {/* SMTP User */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    SMTP User *
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.smtp_user}
-                                    onChange={(e) => setFormData({ ...formData, smtp_user: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="username@example.com"
-                                />
-                            </div>
-
-                            {/* SMTP Password */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    SMTP Password {editingConfig ? '(leave blank to keep current)' : '*'}
-                                </label>
-                                <input
-                                    type="password"
-                                    required={!editingConfig}
-                                    value={formData.smtp_password}
-                                    onChange={(e) => setFormData({ ...formData, smtp_password: e.target.value })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="••••••••"
-                                />
+                                <p className="text-xs text-gray-500 mt-1">e.g., mailtrap, gmail, sendgrid</p>
                             </div>
 
                             {/* From Email */}
@@ -183,38 +123,26 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
                                 />
                             </div>
 
-                            {/* Checkboxes */}
-                            <div className="flex gap-6">
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.use_tls}
-                                        onChange={(e) => setFormData({ ...formData, use_tls: e.target.checked })}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-sm text-gray-700">Use TLS</span>
+                            {/* Provider Config */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Provider Config *
                                 </label>
+                                <textarea
+                                    required
+                                    value={formData.provider_config}
+                                    onChange={(e) => setFormData({ ...formData, provider_config: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                                    rows={12}
 
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.use_ssl}
-                                        onChange={(e) => setFormData({ ...formData, use_ssl: e.target.checked })}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-sm text-gray-700">Use SSL</span>
-                                </label>
-
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.is_active}
-                                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                        className="mr-2"
-                                    />
-                                    <span className="text-sm text-gray-700">Active</span>
-                                </label>
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Enter valid Token configuration for your email provider
+                                </p>
                             </div>
+
+                            {/* Example for Mailtrap */}
+
                         </div>
 
                         {/* Buttons */}

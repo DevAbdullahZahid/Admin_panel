@@ -89,13 +89,22 @@ const EmailConfigs: React.FC = () => {
         setEditingConfig(undefined);
     };
 
+    // Parse provider_config safely
+    const parseProviderConfig = (configStr: string) => {
+        try {
+            return JSON.parse(configStr);
+        } catch {
+            return null;
+        }
+    };
+
     return (
         <div className="p-8">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Email Configurations</h1>
-                    <p className="text-gray-500 mt-1">Manage SMTP settings and email configurations</p>
+                    <p className="text-gray-500 mt-1">Manage email provider settings and configurations</p>
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
@@ -130,16 +139,13 @@ const EmailConfigs: React.FC = () => {
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                Provider
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 From Name / Email
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                SMTP Host
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Port
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                Security
+                                SMTP Details
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 Status
@@ -152,68 +158,71 @@ const EmailConfigs: React.FC = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {isLoading ? (
                             <tr>
-                                <td colSpan={6} className="text-center py-10">
+                                <td colSpan={5} className="text-center py-10">
                                     Loading configurations...
                                 </td>
                             </tr>
                         ) : configs.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="text-center py-10 text-gray-500">
+                                <td colSpan={5} className="text-center py-10 text-gray-500">
                                     No email configurations found. Create one to get started.
                                 </td>
                             </tr>
                         ) : (
-                            configs.map((config) => (
-                                <tr key={config.config_id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm font-medium text-gray-900">{config.from_name}</div>
-                                        <div className="text-sm text-gray-500">{config.from_email}</div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm text-gray-900">{config.smtp_host}</div>
-                                        <div className="text-sm text-gray-500">{config.smtp_user}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900">{config.smtp_port}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex gap-1">
-                                            {config.use_tls && (
-                                                <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">
-                                                    TLS
-                                                </span>
+                            configs.map((config) => {
+                                const providerConfig = parseProviderConfig(config.provider_config);
+                                return (
+                                    <tr key={config.config_id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                {config.provider}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-gray-900">{config.from_name}</div>
+                                            <div className="text-sm text-gray-500">{config.from_email}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {providerConfig ? (
+                                                <div className="text-sm">
+                                                    <div className="text-gray-900">{providerConfig.smtp_host}</div>
+                                                    <div className="text-gray-500">
+                                                        Port: {providerConfig.smtp_port}
+                                                        {providerConfig.use_tls && <span className="ml-2 text-blue-600">TLS</span>}
+                                                        {providerConfig.use_ssl && <span className="ml-2 text-green-600">SSL</span>}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-gray-400">Invalid config</span>
                                             )}
-                                            {config.use_ssl && (
-                                                <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">
-                                                    SSL
-                                                </span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span
-                                            className={`px-2 py-1 text-xs rounded-full ${config.is_active
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-gray-100 text-gray-600'
-                                                }`}
-                                        >
-                                            {config.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm">
-                                        <button
-                                            onClick={() => openEditModal(config)}
-                                            className="mr-3 text-indigo-600 hover:text-indigo-900"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteConfig(config)}
-                                            className="text-red-600 hover:text-red-800"
-                                        >
-                                            <TrashIcon className="w-5 h-5 inline" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span
+                                                className={`px-2 py-1 text-xs rounded-full ${config.is_active
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-gray-100 text-gray-600'
+                                                    }`}
+                                            >
+                                                {config.is_active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm">
+                                            <button
+                                                onClick={() => openEditModal(config)}
+                                                className="mr-3 text-indigo-600 hover:text-indigo-900"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteConfig(config)}
+                                                className="text-red-600 hover:text-red-800"
+                                            >
+                                                <TrashIcon className="w-5 h-5 inline" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

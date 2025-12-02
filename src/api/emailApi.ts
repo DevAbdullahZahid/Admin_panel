@@ -7,41 +7,27 @@ import { apiFetch } from '../utils/apiService';
 
 export interface EmailConfig {
     config_id: string;
-    smtp_host: string;
-    smtp_port: number;
-    smtp_user: string;
-    smtp_password?: string;
+    provider: string;
     from_email: string;
     from_name: string;
-    use_tls: boolean;
-    use_ssl: boolean;
-    is_active: boolean;
+    provider_config: string; // JSON string
+    is_active?: boolean;
     created_at?: string;
     updated_at?: string;
 }
 
 export interface CreateEmailConfigPayload {
-    smtp_host: string;
-    smtp_port: number;
-    smtp_user: string;
-    smtp_password: string;
+    provider: string;
     from_email: string;
     from_name: string;
-    use_tls?: boolean;
-    use_ssl?: boolean;
-    is_active?: boolean;
+    provider_config: string; // JSON string
 }
 
 export interface UpdateEmailConfigPayload {
-    smtp_host?: string;
-    smtp_port?: number;
-    smtp_user?: string;
-    smtp_password?: string;
+    provider?: string;
     from_email?: string;
     from_name?: string;
-    use_tls?: boolean;
-    use_ssl?: boolean;
-    is_active?: boolean;
+    provider_config?: string; // JSON string
 }
 
 export interface EmailTemplate {
@@ -119,11 +105,31 @@ export const getConfigById = async (configId: string): Promise<EmailConfig> => {
  * Create a new email configuration
  */
 export const createConfig = async (payload: CreateEmailConfigPayload): Promise<EmailConfig> => {
-    const response = await apiFetch('/email/configs', {
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/email/configs`, {
         method: 'POST',
-        body: JSON.stringify(payload),
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'accept': 'application/json',
+            'authorization': `Bearer ${token}`,
+        },
+        body: new URLSearchParams({
+            provider: payload.provider,
+            from_email: payload.from_email,
+            from_name: payload.from_name,
+            provider_config: payload.provider_config,
+        }),
     });
-    return response?.data || response;
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to create config' }));
+        throw new Error(error.message || 'Failed to create config');
+    }
+
+    const data = await response.json();
+    console.log('Config created:', data);
+    return data?.data || data;
 };
 
 /**
