@@ -6,7 +6,8 @@ import { apiFetch } from '../utils/apiService';
 // ===================================
 
 export interface EmailConfig {
-    config_id: string;
+    id?: number;
+    config_id?: string;
     provider: string;
     from_email: string;
     from_name: string;
@@ -86,11 +87,26 @@ export interface EmailLog {
  */
 export const getConfigs = async (): Promise<EmailConfig[]> => {
     const response = await apiFetch('/email/configs', { method: 'GET' });
+
+    let configs: any[] = [];
+
     // Handle different response formats
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response?.data)) return response.data;
-    if (Array.isArray(response?.configs)) return response.configs;
-    return [];
+    if (Array.isArray(response)) {
+        configs = response;
+    } else if (response?.data?.configs && Array.isArray(response.data.configs)) {
+        // API returns {data: {configs: [...]}}
+        configs = response.data.configs;
+    } else if (Array.isArray(response?.data)) {
+        configs = response.data;
+    } else if (Array.isArray(response?.configs)) {
+        configs = response.configs;
+    }
+
+    // Normalize configs: API returns 'id' but we use 'config_id'
+    return configs.map(config => ({
+        ...config,
+        config_id: config.config_id || String(config.id)
+    }));
 };
 
 /**
@@ -105,9 +121,9 @@ export const getConfigById = async (configId: string): Promise<EmailConfig> => {
  * Create a new email configuration
  */
 export const createConfig = async (payload: CreateEmailConfigPayload): Promise<EmailConfig> => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('authToken');
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/email/configs`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/email/configs`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -153,6 +169,37 @@ export const deleteConfig = async (configId: string): Promise<void> => {
     await apiFetch(`/email/configs/${configId}`, { method: 'DELETE' });
 };
 
+/**
+ * Send a test email using a specific configuration
+ */
+export const sendTestEmail = async (configId: string, recipientEmail: string): Promise<any> => {
+    const token = localStorage.getItem('authToken');
+
+    const formData = new URLSearchParams({
+        config_id: configId,
+        recipient_email: recipientEmail,
+    });
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/email/send-test-email`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'accept': 'application/json',
+            'authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to send test email' }));
+        throw new Error(error.message || 'Failed to send test email');
+    }
+
+    const data = await response.json();
+    console.log('Test email sent:', data);
+    return data;
+};
+
 // ===================================
 // EMAIL TEMPLATE API FUNCTIONS
 // ===================================
@@ -162,8 +209,13 @@ export const deleteConfig = async (configId: string): Promise<void> => {
  */
 export const getTemplates = async (): Promise<EmailTemplate[]> => {
     const response = await apiFetch('/email/templates', { method: 'GET' });
+
     // Handle different response formats
     if (Array.isArray(response)) return response;
+    if (response?.data?.templates && Array.isArray(response.data.templates)) {
+        // API returns {data: {templates: [...]}}
+        return response.data.templates;
+    }
     if (Array.isArray(response?.data)) return response.data;
     if (Array.isArray(response?.templates)) return response.templates;
     return [];
@@ -181,11 +233,38 @@ export const getTemplateById = async (templateId: string): Promise<EmailTemplate
  * Create a new email template
  */
 export const createTemplate = async (payload: CreateEmailTemplatePayload): Promise<EmailTemplate> => {
-    const response = await apiFetch('/email/templates', {
-        method: 'POST',
-        body: JSON.stringify(payload),
+    const token = localStorage.getItem('authToken');
+
+    const formData = new URLSearchParams({
+        config_id: payload.config_id,
+        name: payload.name,
+        subject: payload.subject,
+        email_type: payload.email_type,
+        html_template: payload.html_template,
     });
-    return response?.data || response;
+
+    if (payload.is_active !== undefined) {
+        formData.append('is_active', String(payload.is_active));
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/email/templates`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'accept': 'application/json',
+            'authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to create template' }));
+        throw new Error(error.message || 'Failed to create template');
+    }
+
+    const data = await response.json();
+    console.log('Template created:', data);
+    return data?.data || data;
 };
 
 /**

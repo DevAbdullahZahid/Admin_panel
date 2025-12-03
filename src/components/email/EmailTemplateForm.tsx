@@ -60,7 +60,9 @@ const EmailTemplateForm: React.FC<EmailTemplateFormProps> = ({
     const loadEmailConfigs = async () => {
         setLoadingConfigs(true);
         try {
+            console.log('Loading email configs for template form...');
             const configList = await getConfigs();
+            console.log('Loaded configs for template form:', configList);
             setConfigs(configList);
             // Auto-select first config if creating new template
             if (!editingTemplate && configList.length > 0) {

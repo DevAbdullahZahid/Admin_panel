@@ -21,7 +21,6 @@ const EmailTemplates: React.FC = () => {
     const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | undefined>(undefined);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Fetch templates on mount
     useEffect(() => {
         loadTemplates();
     }, []);
@@ -90,13 +89,13 @@ const EmailTemplates: React.FC = () => {
         setEditingTemplate(undefined);
     };
 
-    // Filter templates by search query
+    // SAFE filter (prevents crashes)
     const filteredTemplates = templates.filter((template) => {
         const term = searchQuery.toLowerCase();
         return (
-            template.name.toLowerCase().includes(term) ||
-            template.subject.toLowerCase().includes(term) ||
-            template.email_type.toLowerCase().includes(term)
+            (template.name ?? '').toLowerCase().includes(term) ||
+            (template.subject ?? '').toLowerCase().includes(term) ||
+            (template.email_type ?? '').toLowerCase().includes(term)
         );
     });
 
@@ -121,17 +120,13 @@ const EmailTemplates: React.FC = () => {
             {error && (
                 <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg flex justify-between">
                     <span>{error}</span>
-                    <button onClick={() => setError(null)} className="font-bold">
-                        ×
-                    </button>
+                    <button onClick={() => setError(null)} className="font-bold">×</button>
                 </div>
             )}
             {success && (
                 <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-lg flex justify-between">
                     <span>{success}</span>
-                    <button onClick={() => setSuccess(null)} className="font-bold">
-                        ×
-                    </button>
+                    <button onClick={() => setSuccess(null)} className="font-bold">×</button>
                 </div>
             )}
 
@@ -190,17 +185,26 @@ const EmailTemplates: React.FC = () => {
                             filteredTemplates.map((template) => (
                                 <tr key={template.template_id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4">
-                                        <div className="text-sm font-medium text-gray-900">{template.name}</div>
+                                        <div className="text-sm font-medium text-gray-900">
+                                            {template.name ?? 'Untitled'}
+                                        </div>
                                     </td>
+
                                     <td className="px-6 py-4">
-                                        <div className="text-sm text-gray-900 max-w-xs truncate">{template.subject}</div>
+                                        <div className="text-sm text-gray-900 max-w-xs truncate">
+                                            {template.subject ?? 'No subject'}
+                                        </div>
                                     </td>
+
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">
-                                            {template.email_type.charAt(0).toUpperCase() +
-                                                template.email_type.slice(1).replace('_', ' ')}
+                                            {template.email_type
+                                                ? template.email_type.charAt(0).toUpperCase() +
+                                                template.email_type.slice(1).replace('_', ' ')
+                                                : 'Unknown'}
                                         </span>
                                     </td>
+
                                     <td className="px-6 py-4">
                                         <span
                                             className={`px-2 py-1 text-xs rounded-full ${template.is_active
@@ -211,11 +215,13 @@ const EmailTemplates: React.FC = () => {
                                             {template.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
+
                                     <td className="px-6 py-4 text-sm text-gray-500">
                                         {template.created_at
                                             ? new Date(template.created_at).toLocaleDateString()
                                             : '—'}
                                     </td>
+
                                     <td className="px-6 py-4 text-sm">
                                         <button
                                             onClick={() => openEditModal(template)}

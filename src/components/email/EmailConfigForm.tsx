@@ -133,15 +133,16 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = ({
                                     value={formData.provider_config}
                                     onChange={(e) => setFormData({ ...formData, provider_config: e.target.value })}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                                    rows={12}
-
+                                    rows={3}
+                                    placeholder='{"token": "your_api_token", "region": "us"}'
                                 />
                                 <p className="text-xs text-gray-500 mt-1">
-                                    Enter valid Token configuration for your email provider
+                                    Enter valid JSON configuration for your email provider
+                                </p>
+                                <p className="text-xs text-blue-600 mt-1">
+                                    For Mailtrap: {`{"token": "your_api_token", "region": "us"}`}
                                 </p>
                             </div>
-
-                            {/* Example for Mailtrap */}
 
                         </div>
 

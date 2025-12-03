@@ -10,6 +10,7 @@ import {
     createConfig,
     updateConfig,
     deleteConfig,
+    sendTestEmail,
 } from '../api/emailApi';
 
 const EmailConfigs: React.FC = () => {
@@ -89,6 +90,21 @@ const EmailConfigs: React.FC = () => {
         setEditingConfig(undefined);
     };
 
+    const handleTestEmail = async (config: EmailConfig) => {
+        const email = prompt('Enter recipient email address for test:');
+        if (!email) return;
+
+        setError(null);
+        setSuccess(null);
+        try {
+            await sendTestEmail(config.config_id!, email);
+            setSuccess(`Test email sent successfully to ${email}!`);
+        } catch (err: any) {
+            console.error('Failed to send test email:', err);
+            setError(err.message || 'Failed to send test email');
+        }
+    };
+
     // Parse provider_config safely
     const parseProviderConfig = (configStr: string) => {
         try {
@@ -145,7 +161,7 @@ const EmailConfigs: React.FC = () => {
                                 From Name / Email
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                SMTP Details
+                                Configuration
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                 Status
@@ -185,12 +201,23 @@ const EmailConfigs: React.FC = () => {
                                         <td className="px-6 py-4">
                                             {providerConfig ? (
                                                 <div className="text-sm">
-                                                    <div className="text-gray-900">{providerConfig.smtp_host}</div>
-                                                    <div className="text-gray-500">
-                                                        Port: {providerConfig.smtp_port}
-                                                        {providerConfig.use_tls && <span className="ml-2 text-blue-600">TLS</span>}
-                                                        {providerConfig.use_ssl && <span className="ml-2 text-green-600">SSL</span>}
-                                                    </div>
+                                                    {providerConfig.token ? (
+                                                        <>
+                                                            <div className="text-gray-900">Token: {providerConfig.token.substring(0, 8)}...</div>
+                                                            {providerConfig.region && <div className="text-gray-500">Region: {providerConfig.region}</div>}
+                                                        </>
+                                                    ) : providerConfig.smtp_host ? (
+                                                        <>
+                                                            <div className="text-gray-900">{providerConfig.smtp_host}</div>
+                                                            <div className="text-gray-500">
+                                                                Port: {providerConfig.smtp_port}
+                                                                {providerConfig.use_tls && <span className="ml-2 text-blue-600">TLS</span>}
+                                                                {providerConfig.use_ssl && <span className="ml-2 text-green-600">SSL</span>}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">No config details</span>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <span className="text-xs text-gray-400">Invalid config</span>
@@ -199,14 +226,21 @@ const EmailConfigs: React.FC = () => {
                                         <td className="px-6 py-4">
                                             <span
                                                 className={`px-2 py-1 text-xs rounded-full ${config.is_active
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-gray-100 text-gray-600'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-gray-100 text-gray-600'
                                                     }`}
                                             >
                                                 {config.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm">
+                                            <button
+                                                onClick={() => handleTestEmail(config)}
+                                                className="mr-3 text-green-600 hover:text-green-900"
+                                                title="Send test email"
+                                            >
+                                                📧 Test
+                                            </button>
                                             <button
                                                 onClick={() => openEditModal(config)}
                                                 className="mr-3 text-indigo-600 hover:text-indigo-900"
