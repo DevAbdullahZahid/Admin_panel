@@ -91,14 +91,34 @@ const EmailConfigs: React.FC = () => {
     };
 
     const handleTestEmail = async (config: EmailConfig) => {
+        console.log('Test email clicked for config:', config);
+
         const email = prompt('Enter recipient email address for test:');
-        if (!email) return;
+        if (!email) {
+            console.log('Test cancelled - no email provided');
+            return;
+        }
+
+        const name = prompt('Enter recipient name (optional):', 'Test User');
+        const emailType = prompt('Enter email type (e.g., support, welcome, verification):', 'support');
+        if (!emailType) {
+            console.log('Test cancelled - no email type provided');
+            return;
+        }
+        const variables = prompt('Enter Varibales (optional):', 'Hello');
+        console.log('Sending test email with:', { emailType, email, name, variables });
 
         setError(null);
         setSuccess(null);
         try {
-            await sendTestEmail(config.config_id!, email);
-            setSuccess(`Test email sent successfully to ${email}!`);
+            const result = await sendTestEmail(
+                emailType,
+                email,
+                name || undefined,
+                { user_name: name || 'Test User' }
+            );
+            console.log('Test email result:', result);
+            setSuccess(`Test email sent successfully to ${email}! Check Email Logs for details.`);
         } catch (err: any) {
             console.error('Failed to send test email:', err);
             setError(err.message || 'Failed to send test email');
@@ -107,9 +127,18 @@ const EmailConfigs: React.FC = () => {
 
     // Parse provider_config safely
     const parseProviderConfig = (configStr: string) => {
+        if (!configStr) {
+            console.warn('Provider config is empty or null');
+            return null;
+        }
+
         try {
-            return JSON.parse(configStr);
-        } catch {
+            console.log('Parsing provider_config:', configStr);
+            const parsed = JSON.parse(configStr);
+            console.log('Parsed successfully:', parsed);
+            return parsed;
+        } catch (e) {
+            console.error('Failed to parse provider_config:', configStr, 'Error:', e);
             return null;
         }
     };
@@ -220,7 +249,12 @@ const EmailConfigs: React.FC = () => {
                                                     )}
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-gray-400">Invalid config</span>
+                                                <div className="text-xs">
+                                                    <span className="text-red-600">Invalid JSON</span>
+                                                    <div className="text-gray-500 font-mono mt-1 truncate max-w-xs">
+                                                        {config.provider_config?.substring(0, 50)}...
+                                                    </div>
+                                                </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">

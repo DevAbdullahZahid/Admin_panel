@@ -103,10 +103,15 @@ export const getConfigs = async (): Promise<EmailConfig[]> => {
     }
 
     // Normalize configs: API returns 'id' but we use 'config_id'
-    return configs.map(config => ({
-        ...config,
-        config_id: config.config_id || String(config.id)
-    }));
+    const normalizedConfigs = configs.map(config => {
+        console.log('Raw config from API:', config);
+        return {
+            ...config,
+            config_id: config.config_id || String(config.id)
+        };
+    });
+    console.log('Returning normalized configs:', normalizedConfigs);
+    return normalizedConfigs;
 };
 
 /**
@@ -123,6 +128,17 @@ export const getConfigById = async (configId: string): Promise<EmailConfig> => {
 export const createConfig = async (payload: CreateEmailConfigPayload): Promise<EmailConfig> => {
     const token = localStorage.getItem('authToken');
 
+    console.log('Creating config with payload:', payload);
+
+    const formData = new URLSearchParams({
+        provider: payload.provider,
+        from_email: payload.from_email,
+        from_name: payload.from_name,
+        provider_config: payload.provider_config,
+    });
+
+    console.log('FormData being sent:', formData.toString());
+
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/email/configs`, {
         method: 'POST',
         headers: {
@@ -130,12 +146,7 @@ export const createConfig = async (payload: CreateEmailConfigPayload): Promise<E
             'accept': 'application/json',
             'authorization': `Bearer ${token}`,
         },
-        body: new URLSearchParams({
-            provider: payload.provider,
-            from_email: payload.from_email,
-            from_name: payload.from_name,
-            provider_config: payload.provider_config,
-        }),
+        body: formData,
     });
 
     if (!response.ok) {
@@ -144,8 +155,9 @@ export const createConfig = async (payload: CreateEmailConfigPayload): Promise<E
     }
 
     const data = await response.json();
-    console.log('Config created:', data);
-    return data?.data || data;
+    console.log('Config created - full response:', data);
+    console.log('Config created - data.data.config:', data?.data?.config);
+    return data?.data?.config || data?.data || data;
 };
 
 /**
@@ -172,13 +184,35 @@ export const deleteConfig = async (configId: string): Promise<void> => {
 /**
  * Send a test email using a specific configuration
  */
-export const sendTestEmail = async (configId: string, recipientEmail: string): Promise<any> => {
+export const sendTestEmail = async (
+    emailType: string,
+    recipientEmail: string,
+    recipientName?: string,
+    variables?: Record<string, any>
+): Promise<any> => {
     const token = localStorage.getItem('authToken');
 
     const formData = new URLSearchParams({
-        config_id: configId,
+        email_type: emailType,
         recipient_email: recipientEmail,
     });
+
+    if (recipientName) {
+        formData.append('recipient_name', recipientName);
+    }
+
+    if (variables) {
+        formData.append('variables', JSON.stringify(variables));
+    }
+
+    console.log('sendTestEmail - Request params:', {
+        emailType,
+        recipientEmail,
+        recipientName,
+        variables
+    });
+    console.log('sendTestEmail - FormData:', formData.toString());
+    console.log('sendTestEmail - URL:', `${import.meta.env.VITE_API_BASE_URL}/email/send-test-email`);
 
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/email/send-test-email`, {
         method: 'POST',
@@ -190,15 +224,19 @@ export const sendTestEmail = async (configId: string, recipientEmail: string): P
         body: formData,
     });
 
+    console.log('sendTestEmail - Response status:', response.status);
+
     if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Failed to send test email' }));
+        console.error('sendTestEmail - Error response:', error);
         throw new Error(error.message || 'Failed to send test email');
     }
 
-    const data = await response.json();
-    console.log('Test email sent:', data);
-    return data;
+    const result = await response.json();
+    console.log('sendTestEmail - Success response:', result);
+    return result;
 };
+
 
 // ===================================
 // EMAIL TEMPLATE API FUNCTIONS
@@ -209,16 +247,38 @@ export const sendTestEmail = async (configId: string, recipientEmail: string): P
  */
 export const getTemplates = async (): Promise<EmailTemplate[]> => {
     const response = await apiFetch('/email/templates', { method: 'GET' });
+    console.log('getTemplates - Raw response:', response);
+
+    let templates: any[] = [];
 
     // Handle different response formats
-    if (Array.isArray(response)) return response;
-    if (response?.data?.templates && Array.isArray(response.data.templates)) {
+    if (Array.isArray(response)) {
+        console.log('getTemplates - Response is array');
+        templates = response;
+    } else if (response?.data?.templates && Array.isArray(response.data.templates)) {
         // API returns {data: {templates: [...]}}
-        return response.data.templates;
+        console.log('getTemplates - Found data.templates');
+        templates = response.data.templates;
+    } else if (Array.isArray(response?.data)) {
+        console.log('getTemplates - Response.data is array');
+        templates = response.data;
+    } else if (Array.isArray(response?.templates)) {
+        console.log('getTemplates - Response.templates is array');
+        templates = response.templates;
+    } else {
+        console.warn('getTemplates - No valid array found. Response was:', response);
+        return [];
     }
-    if (Array.isArray(response?.data)) return response.data;
-    if (Array.isArray(response?.templates)) return response.templates;
-    return [];
+
+    // Normalize templates: API returns 'id' and 'type', we use 'template_id' and 'email_type'
+    const normalizedTemplates = templates.map(template => ({
+        ...template,
+        template_id: template.template_id || String(template.id),
+        email_type: template.email_type || template.type,
+    }));
+
+    console.log('getTemplates - Returning normalized templates:', normalizedTemplates);
+    return normalizedTemplates;
 };
 
 /**
@@ -313,11 +373,40 @@ export const getVariablesByType = async (emailType: string): Promise<EmailVariab
  */
 export const getLogs = async (): Promise<EmailLog[]> => {
     const response = await apiFetch('/email/logs', { method: 'GET' });
+    console.log('getLogs - Raw response:', response);
+
+    let logs: any[] = [];
+
     // Handle different response formats
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response?.data)) return response.data;
-    if (Array.isArray(response?.logs)) return response.logs;
-    return [];
+    if (Array.isArray(response)) {
+        console.log('getLogs - Response is array');
+        logs = response;
+    } else if (response?.data?.logs && Array.isArray(response.data.logs)) {
+        // API returns {data: {logs: [...]}}
+        console.log('getLogs - Found data.logs');
+        logs = response.data.logs;
+    } else if (Array.isArray(response?.data)) {
+        console.log('getLogs - Response.data is array');
+        logs = response.data;
+    } else if (Array.isArray(response?.logs)) {
+        console.log('getLogs - Response.logs is array');
+        logs = response.logs;
+    } else {
+        console.warn('getLogs - No valid array found. Response was:', response);
+        return [];
+    }
+
+    // Normalize logs: API returns 'id', we use 'log_id'
+    const normalizedLogs = logs.map(log => ({
+        ...log,
+        log_id: log.log_id || String(log.id),
+        email_type: log.email_type || log.type || 'unknown',
+        subject: log.subject || 'No subject',
+        status: log.status || 'sent',
+    }));
+
+    console.log('getLogs - Returning normalized logs:', normalizedLogs);
+    return normalizedLogs;
 };
 
 /**

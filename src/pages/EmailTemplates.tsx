@@ -30,6 +30,10 @@ const EmailTemplates: React.FC = () => {
         setError(null);
         try {
             const data = await getTemplates();
+            console.log('Loaded templates:', data);
+            if (data.length > 0) {
+                console.log('First template structure:', data[0]);
+            }
             setTemplates(data);
         } catch (err: any) {
             console.error('Failed to load templates:', err);
@@ -208,8 +212,8 @@ const EmailTemplates: React.FC = () => {
                                     <td className="px-6 py-4">
                                         <span
                                             className={`px-2 py-1 text-xs rounded-full ${template.is_active
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-gray-100 text-gray-600'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-gray-100 text-gray-600'
                                                 }`}
                                         >
                                             {template.is_active ? 'Active' : 'Inactive'}

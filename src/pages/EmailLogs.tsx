@@ -20,7 +20,12 @@ const EmailLogs: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
+            console.log('Loading email logs...');
             const data = await getLogs();
+            console.log('Loaded email logs:', data);
+            if (data.length > 0) {
+                console.log('First log structure:', data[0]);
+            }
             setLogs(data);
         } catch (err: any) {
             console.error('Failed to load logs:', err);
@@ -123,8 +128,8 @@ const EmailLogs: React.FC = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                                     <span
                                         className={`inline-block px-3 py-1 text-sm rounded-full ${selectedLog.status === 'sent'
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
                                             }`}
                                     >
                                         {selectedLog.status.toUpperCase()}
